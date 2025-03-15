@@ -206,6 +206,56 @@ export const uploadBrandFile = async (file, category, country) => {
   }
 };
 
+export const fetchNews = async (limit = 20) => {
+  try {
+    console.log(`API - Fetching ${limit} news articles`);
+    
+    // Use fetchWithTimeout for a 30-second timeout
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/news?limit=${limit}`, 
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+        credentials: 'same-origin'
+      },
+      30000 // 30-second timeout
+    );
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to fetch news');
+    }
+    
+    console.log(`API - Successfully fetched ${data.news.length} news articles`);
+    return data;
+  } catch (error) {
+    // Check for timeout (AbortError)
+    if (error.name === 'AbortError') {
+      console.error('API - News fetch request timed out:', error);
+      return {
+        success: false,
+        news: [],
+        message: 'The request timed out. Please try again later.'
+      };
+    }
+    
+    console.error('API - Error fetching news:', error);
+    return {
+      success: false,
+      news: [],
+      message: error.message || 'An unknown error occurred while fetching news'
+    };
+  }
+};
+
 export const getDocuments = async (page = 1, perPage = 10) => {
   try {
     const response = await fetch(`${API_BASE_URL}/documents?page=${page}&per_page=${perPage}`);
@@ -271,5 +321,74 @@ export const deleteDocument = async (docId) => {
   } catch (error) {
     console.error('Error deleting document:', error);
     throw error;
+  }
+};
+
+export const enhancedBrandResearch = async (brandName, category = null, country = null, options = {}) => {
+  try {
+    console.log(`API - Starting enhanced research for ${brandName}`);
+    
+    // Prepare options with defaults
+    const includeCompetitors = options.includeCompetitors !== false;
+    const includeTrends = options.includeTrends !== false;
+    
+    // Use the fetchWithTimeout helper with a 120-second timeout for enhanced research
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/enhanced-brand-research`, 
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          brand_name: brandName,
+          category,
+          country,
+          include_competitors: includeCompetitors,
+          include_trends: includeTrends
+        }),
+        mode: 'cors',
+        credentials: 'same-origin'
+      },
+      120000 // 120 seconds timeout for enhanced research operations
+    );
+
+    if (!response.ok) {
+      // Try to get error details from the response
+      const errorData = await response.json().catch(() => ({}));
+      console.error('API - Enhanced research failed:', response.status, errorData);
+      throw new Error(errorData.message || `Server error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`API - Enhanced research successful for: ${data.brand_name || brandName}`);
+    
+    // Log some details about what was found
+    if (data.competitors && data.competitors.length > 0) {
+      console.log(`API - Found ${data.competitors.length} competitors`);
+    }
+    
+    if (data.industry_trends && data.industry_trends.length > 0) {
+      console.log(`API - Found ${data.industry_trends.length} industry trends`);
+    }
+    
+    return data;
+  } catch (error) {
+    // Check for timeout (AbortError)
+    if (error.name === 'AbortError') {
+      console.error('API - Enhanced research request timed out:', error);
+      return {
+        success: false,
+        error: 'Request timed out',
+        message: 'The enhanced research operation took too long. Please try with a more specific brand name.'
+      };
+    }
+    
+    console.error('API - Error during enhanced brand research:', error);
+    return {
+      success: false,
+      error: error.message || 'An unknown error occurred',
+      message: 'Failed to perform enhanced brand research. Please try again later.'
+    };
   }
 }; 
