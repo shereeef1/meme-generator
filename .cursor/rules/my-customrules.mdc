@@ -1,0 +1,24 @@
+---
+description: rules
+globs: 
+alwaysApply: false
+---
+# Coding Rules
+
+1. **Modularity:**  
+   - Break code into small, separate files for each feature (e.g., `scraping.py`, `meme_generation.py`).
+
+2. **Naming:**  
+   - Use clear, descriptive names for files, functions, and variables (e.g., `generate_meme_from_text`).
+
+3. **Security:**  
+   - Store sensitive information like API keys in environment variables, not in the code.
+
+4. **Comments:**  
+   - Add comments to explain complex logic or decisions, making the code easier to maintain.
+
+5. **DRY (Don't Repeat Yourself):**  
+   - Use functions or modules to avoid repeating code across the project.
+
+6. **Testing:**  
+   - Test each feature or step before moving to the next one to catch issues early.
