@@ -44,6 +44,7 @@ const BrandInput = ({ onBrandData }) => {
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [fileInputKey, setFileInputKey] = useState(Date.now());
+  const [status, setStatus] = useState('');
 
   const resetForm = () => {
     setUrl('');
@@ -124,19 +125,20 @@ const BrandInput = ({ onBrandData }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (inputMethod === 'scrape' && !url.trim()) {
-      setError('Please enter a valid URL');
-      return;
-    }
-
-    if (inputMethod === 'upload' && !uploadedFile) {
-      setError('Please upload a file');
+    if (isTextConfirmed) {
+      onBrandData(brandData);
       return;
     }
     
+    if (!inputMethod || (inputMethod === 'scrape' && !url) || (inputMethod === 'upload' && !uploadedFile)) {
+      setError('Please provide a URL or upload a file');
+      return;
+    }
+    
+    setLoading(true);
     setError(null);
     setBrandData(null);
-    setLoading(true);
+    setShowRawText(false);
     setIsTextConfirmed(false);
     
     try {
@@ -147,19 +149,35 @@ const BrandInput = ({ onBrandData }) => {
         }
         
         console.log(`BrandInput - Scraping data from: ${formattedUrl}`);
+        setError(null);
+        setLoading(true);
+        
+        // Show immediate feedback to the user that scraping has started
+        setStatus('Scraping website data. This may take up to 30-60 seconds for larger sites...');
+        
         const data = await scrapeBrandData(formattedUrl, category || undefined, country || undefined);
         
         if (data.success) {
           console.log(`BrandInput - Scraping successful, raw_text length: ${data.raw_text ? data.raw_text.length : 'none'}`);
+          setStatus('');
+          
           if (!data.raw_text || data.raw_text.trim() === '') {
             console.error('BrandInput - Warning: Scraped data has empty raw_text!');
             // Provide a basic default
             data.raw_text = `Data scraped from ${formattedUrl}\nBrand: ${data.brand_name || url}`;
           }
+          
+          // If we're using fallback data, let the user know
+          if (data.scrape_quality === 'fallback' || data.scrape_quality === 'minimal') {
+            setStatus(`Limited data was retrieved from this website due to access restrictions. We've provided what we could find, but you may want to try uploading a file for better results.`);
+          }
+          
           setBrandData(data);
           setShowRawText(true);
         } else {
-          setError(data.message || 'Failed to scrape brand data');
+          console.error('BrandInput - Scraping failed:', data.error || 'Unknown error');
+          setStatus('');
+          setError(data.message || 'Failed to scrape brand data. Please try uploading a file instead.');
         }
       } else {
         const reader = new FileReader();
@@ -192,7 +210,16 @@ const BrandInput = ({ onBrandData }) => {
       }
     } catch (err) {
       console.error('Error processing brand data:', err);
-      setError('An error occurred while processing the data. Please try again.');
+      setStatus('');
+      
+      // Provide more specific error guidance
+      if (err.message && err.message.includes('network')) {
+        setError('Network error when connecting to the server. Please check your internet connection or try uploading a file instead.');
+      } else if (err.message && err.message.includes('timeout')) {
+        setError('The operation timed out. This website may be too large or complex to scrape. Please try uploading a file instead.');
+      } else {
+        setError('An error occurred while processing the data. Please try again or upload a file instead.');
+      }
     } finally {
       setLoading(false);
     }
@@ -267,9 +294,32 @@ const BrandInput = ({ onBrandData }) => {
         <h2 className="h5 mb-0">Brand Information</h2>
       </div>
       <div className="card-body">
+        {/* Show error message if any */}
         {error && (
           <div className="alert alert-danger" role="alert">
             {error}
+            {error.includes('scrape') && (
+              <div className="mt-2">
+                <button 
+                  className="btn btn-sm btn-outline-primary" 
+                  onClick={() => setInputMethod('upload')}
+                >
+                  Switch to File Upload
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Show status message during operations */}
+        {status && !error && (
+          <div className="alert alert-info" role="alert">
+            <div className="d-flex align-items-center">
+              <div className="spinner-border spinner-border-sm me-2" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <span>{status}</span>
+            </div>
           </div>
         )}
         

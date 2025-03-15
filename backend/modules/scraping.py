@@ -17,6 +17,10 @@ import docx
 from datetime import datetime
 import os
 import uuid
+import urllib3
+
+# Disable SSL warnings for requests
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class BrandScraper:
     """Class to handle scraping of brand information from websites"""
@@ -31,13 +35,23 @@ class BrandScraper:
         self.chrome_options.add_argument('--headless')
         self.chrome_options.add_argument('--no-sandbox')
         self.chrome_options.add_argument('--disable-dev-shm-usage')
+        self.chrome_options.add_argument('--disable-gpu')
+        # Add timeout options
+        self.chrome_options.add_argument('--page-load-timeout=30')
+        self.chrome_options.add_argument('--script-timeout=30')
+        # Ignore SSL errors and certificate issues
+        self.chrome_options.add_argument('--ignore-certificate-errors')
+        self.chrome_options.add_argument('--ignore-ssl-errors')
+        self.chrome_options.add_argument('--allow-insecure-localhost')
+        self.chrome_options.add_argument('--disable-web-security')
         
         # Initialize the webdriver
         self.service = Service(ChromeDriverManager().install())
         
         # Scraping settings
-        self.max_pages = 100  # Increased maximum pages
+        self.max_pages = 20  # Reduced maximum pages to prevent timeouts
         self.delay = 1  # Delay between requests
+        self.request_timeout = 30  # Timeout for requests in seconds
         
         # Create documents directory if it doesn't exist
         self.docs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'documents')
@@ -72,14 +86,17 @@ class BrandScraper:
             if base_domain.startswith('www.'):
                 base_domain = base_domain[4:]
             
-            # Initialize the webdriver
+            # Initialize the webdriver with explicit timeouts
             driver = webdriver.Chrome(service=self.service, options=self.chrome_options)
+            driver.set_page_load_timeout(self.request_timeout)
+            driver.set_script_timeout(self.request_timeout)
             
             # Initialize variables for crawling
             visited_urls = set()
             urls_to_visit = deque([url])
             all_content = []
             pages_scraped = 0
+            scrape_success = False
             
             # Create Word document
             doc = docx.Document()
@@ -95,14 +112,42 @@ class BrandScraper:
             
             doc.add_heading('Content', 1)
             
-            # Get initial brand information from homepage
-            driver.get(url)
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
+            # Try to access the homepage directly without waiting for page load
+            try:
+                self.logger.info(f"Attempting to access homepage: {url}")
+                # First try with normal page load
+                driver.get(url)
+                
+                try:
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.TAG_NAME, "body"))
+                    )
+                    scrape_success = True
+                except Exception as e:
+                    self.logger.warning(f"Timeout waiting for page load: {str(e)}")
+                    # Still continue as we might have partial content
+                    
+                # Parse homepage content even if waiting for full load fails
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                page_text = self._extract_all_text(soup)
+                
+                if page_text:
+                    self.logger.info("Successfully extracted text from homepage")
+                    doc.add_paragraph(page_text)
+                    all_content.append(f"\n=== Content from: {url} ===\n{page_text}")
+                    scrape_success = True
+                else:
+                    self.logger.warning("No text content found on homepage")
+                
+            except Exception as e:
+                self.logger.error(f"Failed to access homepage: {str(e)}")
+                # We'll try to continue with other URLs
             
-            # Crawl through all pages
-            while urls_to_visit and pages_scraped < self.max_pages:
+            # Crawl through all pages with more resilient error handling
+            page_timeout_count = 0
+            max_consecutive_failures = 3
+            
+            while urls_to_visit and pages_scraped < self.max_pages and page_timeout_count < max_consecutive_failures:
                 current_url = urls_to_visit.popleft()
                 if current_url in visited_urls:
                     continue
@@ -112,12 +157,18 @@ class BrandScraper:
                     driver.get(current_url)
                     time.sleep(self.delay)
                     
-                    # Wait for page load
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.TAG_NAME, "body"))
-                    )
+                    # Wait for page load with shorter timeout
+                    try:
+                        WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.TAG_NAME, "body"))
+                        )
+                        page_timeout_count = 0  # Reset consecutive failure count
+                    except Exception as e:
+                        self.logger.warning(f"Timeout waiting for page {current_url}: {str(e)}")
+                        page_timeout_count += 1
+                        # Continue anyway with whatever was loaded
                     
-                    # Parse the page
+                    # Parse the page even if waiting for full load fails
                     soup = BeautifulSoup(driver.page_source, 'html.parser')
                     
                     # Add page URL to document
@@ -128,16 +179,22 @@ class BrandScraper:
                     if page_text:
                         doc.add_paragraph(page_text)
                         all_content.append(f"\n=== Content from: {current_url} ===\n{page_text}")
+                        scrape_success = True  # If we got content from any page, count as success
                     
-                    # Find all internal links
-                    links = soup.find_all('a', href=True)
-                    for link in links:
-                        href = link['href']
-                        full_url = urljoin(current_url, href)
-                        
-                        # Only follow internal links
-                        if self._is_internal_link(full_url, base_domain) and full_url not in visited_urls:
-                            urls_to_visit.append(full_url)
+                    # Find all internal links (with error handling)
+                    try:
+                        links = soup.find_all('a', href=True)
+                        for link in links:
+                            href = link['href']
+                            try:
+                                full_url = urljoin(current_url, href)
+                                # Only follow internal links
+                                if self._is_internal_link(full_url, base_domain) and full_url not in visited_urls:
+                                    urls_to_visit.append(full_url)
+                            except Exception as link_error:
+                                self.logger.warning(f"Error processing link {href}: {str(link_error)}")
+                    except Exception as links_error:
+                        self.logger.warning(f"Error finding links on {current_url}: {str(links_error)}")
                     
                     visited_urls.add(current_url)
                     pages_scraped += 1
@@ -145,7 +202,24 @@ class BrandScraper:
                     
                 except Exception as e:
                     self.logger.error(f"Error scraping page {current_url}: {str(e)}")
+                    page_timeout_count += 1
+                    # Add the URL to visited to avoid retrying
+                    visited_urls.add(current_url)
                     continue
+            
+            # Check if we have any content at all
+            if not scrape_success or not all_content:
+                self.logger.warning(f"Failed to scrape any content from {url}")
+                # Try a simplified approach as fallback
+                try:
+                    simplified_content = self._simplified_scrape(url)
+                    if simplified_content:
+                        self.logger.info("Successfully retrieved content using simplified scraping")
+                        all_content = [simplified_content]
+                        scrape_success = True
+                        doc.add_paragraph(simplified_content)
+                except Exception as simple_error:
+                    self.logger.error(f"Simplified scraping also failed: {str(simple_error)}")
             
             # Generate unique filename
             filename = f"{base_domain}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{str(uuid.uuid4())[:8]}.docx"
@@ -157,19 +231,25 @@ class BrandScraper:
             # Combine all text
             combined_text = "\n".join(all_content)
             
+            if not scrape_success or not combined_text.strip():
+                # If we couldn't get any content, provide a basic fallback
+                combined_text = f"Website: {url}\nBrand name: {base_domain}\nScraped on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                self.logger.warning("Using fallback text due to failed scraping")
+            
             brand_data = {
-                "success": True,
+                "success": True,  # Return success even if we only have fallback content
                 "brand_name": base_domain,
-                "tagline": self._extract_tagline(soup),
-                "description": self._extract_description(soup),
-                "products": self._extract_products(soup),
+                "tagline": self._extract_tagline(soup) if 'soup' in locals() else "",
+                "description": self._extract_description(soup) if 'soup' in locals() else f"Data from {base_domain}",
+                "products": self._extract_products(soup) if 'soup' in locals() else [],
                 "category": category,
                 "country": country,
                 "source_url": url,
                 "pages_scraped": pages_scraped,
                 "raw_text": combined_text,
                 "document_path": filepath,
-                "document_name": filename
+                "document_name": filename,
+                "scrape_quality": "full" if scrape_success else "fallback"
             }
             
             self.logger.info(f"Website crawling completed. Scraped {pages_scraped} pages.")
@@ -178,14 +258,106 @@ class BrandScraper:
         except Exception as e:
             self.logger.error(f"Scraping error: {str(e)}")
             self.logger.error(traceback.format_exc())
-            return {
-                "success": False,
-                "error": f"Scraping error: {str(e)}",
-                "message": "An error occurred while processing the website content."
-            }
+            
+            # Create a basic fallback response
+            try:
+                parsed_uri = urlparse(url)
+                base_domain = parsed_uri.netloc
+                if base_domain.startswith('www.'):
+                    base_domain = base_domain[4:]
+                
+                # Create a minimal document
+                doc = docx.Document()
+                doc.add_heading(f'Brand Information: {base_domain}', 0)
+                doc.add_paragraph(f'Source URL: {url}')
+                doc.add_paragraph(f'Scrape Date: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+                doc.add_paragraph("Note: Automated scraping failed. Basic information was created instead.")
+                
+                # Try to get some basic content using requests as a last resort
+                fallback_content = self._simplified_scrape(url)
+                if fallback_content:
+                    doc.add_paragraph(fallback_content)
+                
+                # Save the document
+                filename = f"{base_domain}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_fallback_{str(uuid.uuid4())[:8]}.docx"
+                filepath = os.path.join(self.docs_dir, filename)
+                doc.save(filepath)
+                
+                return {
+                    "success": True,  # Return success with fallback data
+                    "brand_name": base_domain,
+                    "tagline": "",
+                    "description": f"Basic information for {base_domain}",
+                    "products": [],
+                    "category": category,
+                    "country": country,
+                    "source_url": url,
+                    "pages_scraped": 0,
+                    "raw_text": fallback_content or f"Failed to scrape {url}. Please try uploading a document instead.",
+                    "document_path": filepath,
+                    "document_name": filename,
+                    "scrape_quality": "minimal"
+                }
+            except Exception as fallback_error:
+                self.logger.error(f"Even fallback creation failed: {str(fallback_error)}")
+                return {
+                    "success": False,
+                    "error": f"Scraping error: {str(e)}",
+                    "message": "An error occurred while processing the website content. Please try uploading a file instead."
+                }
+                
         finally:
             if driver:
                 driver.quit()
+                
+    def _simplified_scrape(self, url):
+        """Simple scraping using requests as a fallback"""
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+            response = requests.get(url, headers=headers, timeout=10, verify=False)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Remove unwanted elements
+            for element in soup(['script', 'style', 'noscript', 'iframe', 'head']):
+                element.decompose()
+                
+            # Get main content
+            content = ""
+            
+            # Try to get meta description
+            meta_desc = soup.find('meta', {'name': 'description'})
+            if meta_desc and meta_desc.get('content'):
+                content += f"Description: {meta_desc.get('content')}\n\n"
+                
+            # Try to get main content areas
+            for tag in ['main', 'article', 'section', 'div.content', 'div.main']:
+                main_content = soup.select(tag)
+                if main_content:
+                    for element in main_content:
+                        paragraphs = element.find_all('p')
+                        for p in paragraphs:
+                            if p.text.strip() and len(p.text.strip()) > 20:
+                                content += p.text.strip() + "\n\n"
+                                
+            # If we couldn't find structured content, just get all paragraphs
+            if not content:
+                paragraphs = soup.find_all('p')
+                for p in paragraphs:
+                    if p.text.strip() and len(p.text.strip()) > 20:
+                        content += p.text.strip() + "\n\n"
+                        
+            # If still no content, get all text as a last resort
+            if not content:
+                content = soup.get_text(separator="\n", strip=True)
+                
+            return content
+        except Exception as e:
+            self.logger.error(f"Simplified scraping failed: {str(e)}")
+            return "Failed to retrieve content from website."
     
     def _is_internal_link(self, url, base_domain):
         """Check if a URL is an internal link"""

@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from config import Config
 import requests
 import logging
+import time
+import traceback
 
 # Import our modules
 from modules.meme_generation import MemeGenerator
@@ -123,9 +125,11 @@ def generate_meme():
 @app.route('/api/scrape-brand', methods=['POST'])
 def scrape_brand():
     try:
+        app.logger.info("Received brand scraping request")
         data = request.get_json()
         
         if not data or 'url' not in data:
+            app.logger.warning("No URL provided in scrape request")
             return jsonify({
                 "success": False,
                 "error": "No URL provided",
@@ -136,8 +140,16 @@ def scrape_brand():
         category = data.get('category')
         country = data.get('country')
         
+        app.logger.info(f"Scraping brand data from URL: {url}")
+        # Set a timeout for the scraping operation
+        start_time = time.time()
+        
         # Scrape the brand data
         result = brand_scraper.scrape_brand_data(url, category, country)
+        
+        # Log the time taken
+        elapsed_time = time.time() - start_time
+        app.logger.info(f"Scraping completed in {elapsed_time:.2f} seconds. Success: {result['success']}")
         
         if result["success"]:
             # Add document to history
@@ -148,16 +160,25 @@ def scrape_brand():
                 country
             )
             result["document_id"] = doc_entry["id"]
+            
+            # Check if the raw_text is empty and log it
+            if not result.get("raw_text") or not result["raw_text"].strip():
+                app.logger.warning(f"Scraping completed but raw_text is empty for URL: {url}")
+                # Add a minimal fallback text
+                result["raw_text"] = f"Data scraped from {url}. Brand: {result.get('brand_name', 'Unknown')}"
+                
             return jsonify(result)
         else:
+            app.logger.error(f"Failed to scrape brand data: {result.get('error', 'Unknown error')}")
             return jsonify(result), 400
             
     except Exception as e:
         app.logger.error(f"Server error in scrape_brand: {str(e)}")
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "error": f"Server error: {str(e)}",
-            "message": "An unexpected error occurred on the server."
+            "message": "An unexpected error occurred on the server. Please try uploading a file instead."
         }), 500
 
 # Route for fetching news (we'll implement this in Step 5)

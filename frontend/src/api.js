@@ -1,27 +1,74 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+// Helper function to create a fetch request with timeout
+const fetchWithTimeout = async (url, options, timeout = 60000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+};
+
 export const scrapeBrandData = async (url, category, country) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/scrape-brand`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    console.log(`API - Scraping brand data from ${url} with timeout protection`);
+    
+    // Use the fetchWithTimeout helper with a 90-second timeout for scraping
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/scrape-brand`, 
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url,
+          category,
+          country
+        }),
+        mode: 'cors',
+        credentials: 'same-origin'
       },
-      body: JSON.stringify({
-        url,
-        category,
-        country
-      }),
-    });
+      90000 // 90 seconds timeout for scraping operations
+    );
 
     if (!response.ok) {
-      throw new Error('Network response was not ok');
+      // Try to get error details from the response
+      const errorData = await response.json().catch(() => ({}));
+      console.error('API - Scraping failed:', response.status, errorData);
+      throw new Error(errorData.message || `Server error: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log(`API - Scraping successful, received data for: ${data.brand_name || url}`);
+    return data;
   } catch (error) {
-    console.error('Error scraping brand data:', error);
-    throw error;
+    // Check for timeout (AbortError)
+    if (error.name === 'AbortError') {
+      console.error('API - Scraping request timed out:', error);
+      return {
+        success: false,
+        error: 'Request timed out',
+        message: 'The scraping operation took too long. Please try again with a smaller website or upload a file instead.'
+      };
+    }
+    
+    console.error('API - Error scraping brand data:', error);
+    return {
+      success: false,
+      error: error.message || 'An unknown error occurred',
+      message: 'Failed to scrape brand data. Please check the URL or try uploading a file instead.'
+    };
   }
 };
 
