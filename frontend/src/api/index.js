@@ -16,5 +16,15 @@ export const generateMemes = async (text) => {
   return response.data;
 };
 
+// Scrape brand data API call
+export const scrapeBrandData = async (url, category, country) => {
+  const response = await api.post('/scrape-brand', { 
+    url,
+    category,
+    country
+  });
+  return response.data;
+};
+
 // Export the API
 export default api; 

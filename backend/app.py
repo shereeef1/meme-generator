@@ -6,8 +6,8 @@ from config import Config
 
 # Import our modules
 from modules.meme_generation import MemeGenerator
+from modules.scraping import BrandScraper
 # These will be used in subsequent steps
-# from modules.scraping import BrandScraper
 # from modules.news_integration import NewsIntegration
 # from modules.export import MemeExport
 # from firebase_config import db, storage_bucket
@@ -19,8 +19,9 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
 app.config.from_object(Config)
 
-# Initialize the meme generator
+# Initialize the modules
 meme_generator = MemeGenerator()
+brand_scraper = BrandScraper()
 
 # Simple health check route
 @app.route('/api/health', methods=['GET'])
@@ -63,11 +64,41 @@ def generate_meme():
             "message": "An unexpected error occurred on the server."
         }), 500
 
-# Route for scraping brand data (we'll implement this in Step 4)
+# Route for scraping brand data
 @app.route('/api/scrape-brand', methods=['POST'])
 def scrape_brand():
-    # Placeholder for now
-    return jsonify({"status": "success", "message": "Brand scraping endpoint (to be implemented)"})
+    try:
+        # Get the URL from the request
+        data = request.get_json()
+        
+        if not data or 'url' not in data:
+            return jsonify({
+                "success": False,
+                "error": "No URL provided",
+                "message": "Please provide a URL to scrape"
+            }), 400
+            
+        url = data.get('url')
+        category = data.get('category')
+        country = data.get('country')
+        
+        # Scrape the brand data
+        result = brand_scraper.scrape_brand_data(url, category, country)
+        
+        # Return the result
+        if result["success"]:
+            return jsonify(result)
+        else:
+            # If there was an error, return with appropriate status code
+            return jsonify(result), 400
+            
+    except Exception as e:
+        # Handle any unexpected errors
+        return jsonify({
+            "success": False,
+            "error": f"Server error: {str(e)}",
+            "message": "An unexpected error occurred on the server."
+        }), 500
 
 # Route for fetching news (we'll implement this in Step 5)
 @app.route('/api/news', methods=['GET'])

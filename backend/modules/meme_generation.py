@@ -2,7 +2,7 @@ import requests
 import os
 import json
 import base64
-from ..config import Config
+from config import Config
 
 class MemeGenerator:
     """Class to handle interactions with the Supermeme.ai API"""

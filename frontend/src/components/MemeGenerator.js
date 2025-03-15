@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { generateMemes } from '../api';
 
-const MemeGenerator = () => {
+const MemeGenerator = ({ brandData, textSuggestions = [] }) => {
   // State for text input, loading status, memes, and selected meme
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [memes, setMemes] = useState([]);
   const [selectedMeme, setSelectedMeme] = useState(null);
+
+  // Effect to update text when brand data changes
+  useEffect(() => {
+    if (brandData && textSuggestions && textSuggestions.length > 0) {
+      setText(textSuggestions[0]);
+    }
+  }, [brandData, textSuggestions]);
 
   // Handle form submission to generate memes
   const handleSubmit = async (e) => {
@@ -50,6 +57,11 @@ const MemeGenerator = () => {
     setSelectedMeme(meme);
   };
 
+  // Handle clicking a suggestion
+  const handleSuggestionClick = (suggestion) => {
+    setText(suggestion);
+  };
+
   return (
     <div className="row">
       <div className="col-md-6 mb-4">
@@ -61,6 +73,24 @@ const MemeGenerator = () => {
             {error && (
               <div className="alert alert-danger" role="alert">
                 {error}
+              </div>
+            )}
+            
+            {textSuggestions && textSuggestions.length > 0 && (
+              <div className="mb-3">
+                <label className="form-label">Suggestions:</label>
+                <div className="d-flex flex-wrap gap-2">
+                  {textSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      {suggestion.length > 30 ? suggestion.substring(0, 30) + '...' : suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             
