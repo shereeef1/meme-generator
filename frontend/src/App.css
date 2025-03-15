@@ -1,0 +1,18 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+header {
+  background: linear-gradient(135deg, #0d47a1, #42a5f5);
+}
+
+footer {
+  background: linear-gradient(135deg, #0d47a1, #42a5f5);
+  margin-top: auto;
+} 

@@ -14,9 +14,9 @@
 
 ## Step 3: Build Basic React Frontend
 
-- **Status:** [ ] Completed
-- **Notes:** [Add notes here after completion]
-- **Insights:** [Add any insights or learnings]
+- **Status:** [x] Completed
+- **Notes:** Created a React frontend with a form for text input and a gallery to display and select generated memes. Used Bootstrap for styling. Implemented responsive design with a clean, user-friendly interface.
+- **Insights:** The meme gallery allows users to browse and select from all 16 variations returned by the API. Added download and preview functionality for the selected meme. Temporary URLs from the API (valid for 1 hour) impact user experience - users should be informed of this limitation.
 
 ## Step 4: Implement Brand Data Scraping
 
