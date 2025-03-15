@@ -1,0 +1,90 @@
+.prompt-card {
+  transition: all 0.2s ease;
+  border: 1px solid #dee2e6;
+  margin-bottom: 1rem;
+}
+
+.prompt-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.prompt-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.prompt-list {
+  max-height: 800px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.prompt-card h6 {
+  color: #6c757d;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prompt-card p {
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.prompt-card .text-muted {
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.prompt-card.border-primary {
+  border-width: 2px;
+  background-color: #f8f9ff;
+}
+
+.list-group-item {
+  cursor: pointer;
+}
+
+.list-group-item.active {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.loading-step {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.loading-step h5 {
+  color: #495057;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.progress {
+  background-color: #e9ecef;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  background-color: #0d6efd;
+  transition: width 0.6s ease;
+} 

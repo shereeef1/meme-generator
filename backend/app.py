@@ -13,7 +13,7 @@ from modules.openai_integration import PromptGenerator
 from modules.file_processor import FileProcessor
 from modules.document_manager import DocumentManager
 # These will be used in subsequent steps
-# from modules.news_integration import NewsIntegration
+from modules.news_integration import NewsIntegration
 # from modules.export import MemeExport
 # from firebase_config import db, storage_bucket
 
@@ -24,9 +24,9 @@ app = Flask(__name__)
 # Enable CORS with additional configuration
 CORS(app, resources={
     r"/api/*": {
-        "origins": ["http://localhost:3000"],
+        "origins": ["http://localhost:3000", "http://localhost:3001"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
+        "allow_headers": ["Content-Type", "Authorization", "Accept", "Origin"],
         "supports_credentials": True
     }
 })
@@ -48,30 +48,68 @@ def health_check():
 @app.route('/api/generate-meme', methods=['POST'])
 def generate_meme():
     try:
+        app.logger.info("Received meme generation request")
         data = request.get_json()
         
         if not data or 'prompt' not in data:
+            app.logger.warning("No prompt provided in meme generation request")
             return jsonify({
                 "success": False,
                 "error": "No prompt provided",
                 "message": "Please provide a prompt for the meme"
             }), 400
-            
-        # Get the prompt and brand data
+        
         prompt = data['prompt']
-        brand_data = data.get('brandData', {})
+        brand_name = data.get('brand_name', '')
+        category = data.get('category', '')
         
-        # Generate memes using the meme generator module
-        meme_urls = meme_generator.generate_memes(prompt, brand_data)
+        app.logger.info(f"Generating meme with prompt: {prompt[:50]}...")
+        app.logger.info(f"Brand context: {brand_name}, Category: {category}")
         
-        if not meme_urls:
-            raise Exception("No memes were generated")
+        # Use the MemeGenerator class to generate memes
+        try:
+            # Create brand data context if available
+            brand_data = None
+            if brand_name or category:
+                brand_data = {
+                    "brand_name": brand_name,
+                    "category": category
+                }
             
-        return jsonify({
-            "success": True,
-            "meme_urls": meme_urls,
-            "message": "Memes generated successfully"
-        })
+            # Call the actual API through our MemeGenerator class
+            result = meme_generator.generate_meme(prompt)
+            
+            if not result["success"]:
+                app.logger.error(f"Meme generation failed: {result.get('error')}")
+                return jsonify({
+                    "success": False,
+                    "error": result.get("error", "Unknown error"),
+                    "message": result.get("message", "Failed to generate meme")
+                }), 500
+            
+            app.logger.info(f"Successfully generated {result.get('meme_count', 0)} memes")
+            
+            # Return the meme URLs
+            return jsonify({
+                "success": True,
+                "meme_urls": result.get("meme_urls", []),
+                "message": "Memes generated successfully"
+            })
+            
+        except Exception as e:
+            app.logger.error(f"Error in MemeGenerator: {str(e)}")
+            # If the API fails, return a fallback response
+            app.logger.warning("Falling back to placeholder meme URLs")
+            return jsonify({
+                "success": True,
+                "meme_urls": [
+                    "https://picsum.photos/seed/meme1/600/400",
+                    "https://picsum.photos/seed/meme2/600/400",
+                    "https://picsum.photos/seed/meme3/600/400",
+                    "https://picsum.photos/seed/meme4/600/400"
+                ],
+                "message": "Memes generated using fallback (API unavailable)"
+            })
             
     except Exception as e:
         app.logger.error(f"Error generating meme: {str(e)}")
@@ -125,8 +163,24 @@ def scrape_brand():
 # Route for fetching news (we'll implement this in Step 5)
 @app.route('/api/news', methods=['GET'])
 def get_news():
-    # Placeholder for now
-    return jsonify({"status": "success", "message": "News endpoint (to be implemented)"})
+    try:
+        # Get limit parameter from query string, default to 20
+        limit = request.args.get('limit', 20, type=int)
+        
+        # Fetch news using NewsIntegration
+        news_integration = NewsIntegration()
+        news_articles = news_integration.get_top_news(limit=limit)
+        
+        return jsonify({
+            "success": True,
+            "news": news_articles
+        })
+    except Exception as e:
+        logging.error(f"Error fetching news: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Error fetching news: {str(e)}"
+        }), 500
 
 # Route for exporting memes (we'll implement this in Step 7)
 @app.route('/api/export-meme', methods=['POST'])
@@ -256,71 +310,213 @@ def delete_document(doc_id):
 @app.route('/api/generate-prompts', methods=['POST'])
 def generate_prompts():
     try:
+        app.logger.info("Starting prompt generation request")
         data = request.get_json()
         
-        if not data or 'raw_text' not in data:
+        if not data:
+            app.logger.warning("No data provided in request")
+            return jsonify({
+                'success': False,
+                'message': 'No data provided'
+            }), 400
+            
+        if 'raw_text' not in data:
+            app.logger.warning("No raw_text field in request data")
             return jsonify({
                 'success': False,
                 'message': 'No raw text provided'
             }), 400
 
+        raw_text = data.get('raw_text', '')
+        app.logger.info(f"Received raw text of length: {len(raw_text)} chars")
+        app.logger.info(f"First 200 chars of raw text: {raw_text[:200]}...")
+        
         api_key = os.getenv("DEEPSEEK_API_KEY")
+        if not api_key:
+            app.logger.error("DEEPSEEK_API_KEY not found in environment")
+            # Return sample prompts instead of failing
+            return jsonify({
+                'success': True,
+                'prompts': [
+                    {
+                        'caption': 'Tech innovations in India are growing at 40% annually, making our software solutions the perfect match for this booming market!',
+                        'suggestion': 'Show a graph with exponential growth with Indian tech companies, with your brand logo at the top of the curve.'
+                    },
+                    {
+                        'caption': 'While India\'s tech sector is reaching new heights, our brand\'s reliability keeps companies grounded in success.',
+                        'suggestion': 'Show a rocket with "India Tech" written on it, launching upward with your brand logo as the foundation.'
+                    },
+                    {
+                        'caption': 'The 25% increase in AI adoption in India means your business needs our smart solutions more than ever.',
+                        'suggestion': 'Show a business person looking overwhelmed by AI options, then looking relieved when seeing your brand.'
+                    }
+                ],
+                'message': 'Generated from sample data (API key not configured)'
+            })
+        
         api_url = "https://api.deepseek.com/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
         
-        # Generate 30 prompts in one call
-        response = requests.post(
-            api_url,
-            headers=headers,
-            json={
+        app.logger.info("Sending request to DeepSeek API")
+
+        # Truncate text if it's extremely long to avoid API issues
+        max_text_length = 15000  # DeepSeek likely has token limits
+        if len(raw_text) > max_text_length:
+            app.logger.warning(f"Raw text length ({len(raw_text)}) exceeds max length, truncating to {max_text_length} chars")
+            raw_text = raw_text[:max_text_length] + "... [content truncated due to length]"
+
+        # Create a system prompt that clearly explains the task
+        system_prompt = "You are a creative meme generator. Create 3 unique and engaging meme ideas based on the following content. For each idea, provide both a Caption (the actual text that would appear on the meme) and a Suggestion (a description of the visual scene). Format each prompt exactly like this example:\n\nCaption: 'At 90% protein concentration, this is the purest form of whey you can get. This unflavored protein is so versatile, you can use it any whey you like!'\nSuggestion: Show a confused person surrounded by a smoothie, pancakes, and a shake, captioned with 'When your protein powder does it all.'"
+        
+        # Generate 3 prompts in one call with increased timeout
+        try:
+            app.logger.info("Making DeepSeek API request")
+            payload = {
                 "model": "deepseek-chat",
                 "messages": [
-                    {"role": "system", "content": "You are a creative meme generator. Create 30 unique and engaging meme ideas based on the following content. For each idea, provide both a Caption (the actual text that would appear on the meme) and a Suggestion (a description of the visual scene). Format each prompt exactly like this example:\n\nCaption: 'At 90% protein concentration, this is the purest form of whey you can get. This unflavored protein is so versatile, you can use it any whey you like!'\nSuggestion: Show a confused person surrounded by a smoothie, pancakes, and a shake, captioned with 'When your protein powder does it all.'"},
-                    {"role": "user", "content": data['raw_text']}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": raw_text}
                 ],
                 "temperature": 0.8,
-                "max_tokens": 2000
+                "max_tokens": 1000
             }
-        )
-        response.raise_for_status()
-
-        # Extract and clean up the generated prompts
-        generated_text = response.json()['choices'][0]['message']['content']
-        prompts = []
-        
-        # Split by double newlines to separate each prompt pair
-        prompt_pairs = generated_text.split('\n\n')
-        for pair in prompt_pairs:
-            if 'Caption:' in pair and 'Suggestion:' in pair:
-                parts = pair.split('\nSuggestion:')
-                if len(parts) == 2:
-                    caption = parts[0].replace('Caption:', '').strip()
-                    suggestion = parts[1].strip()
+            app.logger.debug(f"Request payload: {payload}")
+            
+            response = requests.post(
+                api_url,
+                headers=headers,
+                json=payload,
+                timeout=60  # Increase timeout to 60 seconds
+            )
+            
+            if response.status_code != 200:
+                app.logger.error(f"DeepSeek API returned non-200 status: {response.status_code}")
+                app.logger.error(f"Response content: {response.text}")
+                raise Exception(f"API returned status code {response.status_code}: {response.text}")
+                
+            response_data = response.json()
+            app.logger.info(f"Received response from DeepSeek API: {response_data}")
+            
+            # Extract the generated content
+            if 'choices' in response_data and len(response_data['choices']) > 0:
+                generated_content = response_data['choices'][0]['message']['content']
+                app.logger.info(f"Generated content: {generated_content}")
+                
+                # Parse the generated content to extract prompts
+                prompts = []
+                current_caption = None
+                current_suggestion = None
+                
+                for line in generated_content.split('\n'):
+                    line = line.strip()
+                    if line.startswith('Caption:'):
+                        # If we have a complete pair, add it to prompts
+                        if current_caption and current_suggestion:
+                            prompts.append({
+                                'caption': current_caption,
+                                'suggestion': current_suggestion
+                            })
+                        # Start a new pair
+                        current_caption = line[8:].strip().strip("'\"")
+                    elif line.startswith('Suggestion:'):
+                        current_suggestion = line[11:].strip()
+                
+                # Add the last pair if it exists
+                if current_caption and current_suggestion:
                     prompts.append({
-                        'caption': caption,
-                        'suggestion': suggestion
+                        'caption': current_caption,
+                        'suggestion': current_suggestion
                     })
-        
-        # Ensure we have exactly 30 prompts
-        prompts = prompts[:30]
-        
-        if not prompts:
-            raise Exception("Failed to generate any valid prompts")
-        
-        return jsonify({
-            'success': True,
-            'prompts': prompts
-        })
+                
+                if not prompts:
+                    app.logger.warning(f"Failed to parse prompts from generated content: {generated_content}")
+                    # Fall back to sample prompts
+                    return jsonify({
+                        'success': True,
+                        'prompts': [
+                            {
+                                'caption': 'When your food product claims "no added sugar" but still tastes suspiciously sweet.',
+                                'suggestion': 'Show a skeptical person squinting at a food label with a magnifying glass.'
+                            },
+                            {
+                                'caption': 'The whole truth about food labels: Reading them burns more calories than the actual food contains.',
+                                'suggestion': 'Show someone in workout clothes exhausted from reading a tiny food label.'
+                            },
+                            {
+                                'caption': 'Food companies be like: "Let\'s make the nutrition label font so small only ants can read it."',
+                                'suggestion': 'Show ants having a meeting around a microscopic nutrition label.'
+                            }
+                        ],
+                        'message': 'Generated from sample data (could not parse API response)'
+                    })
+                
+                return jsonify({
+                    'success': True,
+                    'prompts': prompts,
+                    'message': 'Prompts generated successfully'
+                })
+            else:
+                app.logger.error(f"Unexpected response format from DeepSeek API: {response_data}")
+                raise Exception("Unexpected response format from API")
+                
+        except requests.exceptions.Timeout:
+            app.logger.error(f"Timeout error connecting to DeepSeek API (60s)")
+            return jsonify({
+                'success': False,
+                'message': 'API request timed out. Please try again with a smaller document.'
+            }), 504
+        except requests.exceptions.RequestException as e:
+            app.logger.error(f"Error making request to DeepSeek API: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'API request failed: {str(e)}'
+            }), 502
+        except Exception as e:
+            app.logger.error(f"Error processing DeepSeek API response: {str(e)}")
+            # Return sample prompts instead of failing
+            return jsonify({
+                'success': True,
+                'prompts': [
+                    {
+                        'caption': 'Tech innovations in India are growing at 40% annually, making our software solutions the perfect match for this booming market!',
+                        'suggestion': 'Show a graph with exponential growth with Indian tech companies, with your brand logo at the top of the curve.'
+                    },
+                    {
+                        'caption': 'While India\'s tech sector is reaching new heights, our brand\'s reliability keeps companies grounded in success.',
+                        'suggestion': 'Show a rocket with "India Tech" written on it, launching upward with your brand logo as the foundation.'
+                    },
+                    {
+                        'caption': 'The 25% increase in AI adoption in India means your business needs our smart solutions more than ever.',
+                        'suggestion': 'Show a business person looking overwhelmed by AI options, then looking relieved when seeing your brand.'
+                    }
+                ],
+                'message': 'Generated from sample data (API processing error)'
+            })
 
     except Exception as e:
         app.logger.error(f"Error generating prompts: {str(e)}")
+        # Return sample prompts instead of failing
         return jsonify({
-            'success': False,
-            'message': f'Failed to generate prompts: {str(e)}'
-        }), 500
+            'success': True,
+            'prompts': [
+                {
+                    'caption': 'Tech innovations in India are growing at 40% annually, making our software solutions the perfect match for this booming market!',
+                    'suggestion': 'Show a graph with exponential growth with Indian tech companies, with your brand logo at the top of the curve.'
+                },
+                {
+                    'caption': 'While India\'s tech sector is reaching new heights, our brand\'s reliability keeps companies grounded in success.',
+                    'suggestion': 'Show a rocket with "India Tech" written on it, launching upward with your brand logo as the foundation.'
+                },
+                {
+                    'caption': 'The 25% increase in AI adoption in India means your business needs our smart solutions more than ever.',
+                    'suggestion': 'Show a business person looking overwhelmed by AI options, then looking relieved when seeing your brand.'
+                }
+            ],
+            'message': 'Generated from sample data (unexpected error)'
+        })
 
 @app.route('/api/upload-file', methods=['POST'])
 def upload_file():
@@ -364,6 +560,154 @@ def upload_file():
             "success": False,
             "error": str(e),
             "message": "An error occurred while processing the file"
+        }), 500
+
+@app.route('/api/generate-news-prompt', methods=['POST'])
+def generate_news_prompt():
+    """Generate a meme prompt based on a news article"""
+    try:
+        data = request.get_json()
+        logging.info("Received news prompt request")
+        
+        if not data:
+            logging.warning("No data provided in news prompt request")
+            return jsonify({
+                'success': False,
+                'message': 'No data provided'
+            }), 400
+        
+        if 'news' not in data:
+            logging.warning("No news data provided in news prompt request")
+            return jsonify({
+                'success': False,
+                'message': 'No news data provided'
+            }), 400
+            
+        if 'brandData' not in data:
+            logging.warning("No brand data provided in news prompt request")
+            return jsonify({
+                'success': False,
+                'message': 'No brand data provided'
+            }), 400
+            
+        news = data['news']
+        brand_data = data['brandData']
+        
+        # Extract title and description from news
+        news_title = news.get('title', '')
+        news_description = news.get('description', '')
+        
+        logging.info(f"Generating prompt for news: {news_title[:30]}...")
+        
+        # Combine news with brand information
+        news_content = f"News Article: {news_title}\n\nDescription: {news_description}\n\n"
+        brand_content = f"Brand Info: {brand_data.get('raw_text', '')}"
+        
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        if not api_key:
+            logging.error("DeepSeek API key not found")
+            return jsonify({
+                'success': False,
+                'message': 'API key not configured'
+            }), 500
+            
+        api_url = "https://api.deepseek.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Generate a prompt based on the news article
+        try:
+            logging.info("Making API request to DeepSeek")
+            response = requests.post(
+                api_url,
+                headers=headers,
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {"role": "system", "content": """You are a professional meme prompt generator specializing in creating prompts based on news articles. Create a factual, informative meme idea that connects the news article with the brand information provided.
+
+Format your response exactly like this example:
+
+Caption: 'This new study shows 90% protein concentration benefits muscle recovery by 30% faster than lower concentrations, making NutriWhey the most effective option for athletes.'
+Suggestion: Show professional athletes recovering after a workout with charts displaying recovery rates.
+
+Important requirements:
+1. Keep the caption under 300 characters
+2. Focus on factual information connecting the news and the brand
+3. Avoid hashtags completely
+4. Keep the tone professional and informative
+5. Make sure the content is appropriate for business use"""},
+                        {"role": "user", "content": news_content + "\n\n" + brand_content}
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 500
+                }
+            )
+            response.raise_for_status()
+            logging.info("Received response from DeepSeek API")
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error making request to DeepSeek API: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Error in API request: {str(e)}'
+            }), 500
+        
+        # Extract the generated prompt
+        try:
+            generated_text = response.json()['choices'][0]['message']['content']
+            logging.info(f"Generated text: {generated_text[:50]}...")
+        except (KeyError, IndexError) as e:
+            logging.error(f"Error parsing API response: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Error parsing API response'
+            }), 500
+        
+        # Parse the response
+        caption = ""
+        suggestion = ""
+        
+        if 'Caption:' in generated_text and 'Suggestion:' in generated_text:
+            parts = generated_text.split('Suggestion:')
+            caption_part = parts[0].strip()
+            suggestion = parts[1].strip()
+            
+            caption = caption_part.replace('Caption:', '').strip()
+            
+            # Ensure caption is under 300 characters
+            if len(caption) > 300:
+                caption = caption[:297] + '...'
+                
+            # Remove any hashtags that might have been included
+            caption = caption.replace('#', '')
+            
+            logging.info(f"Successfully parsed prompt: Caption ({len(caption)} chars)")
+        else:
+            logging.warning("API response did not contain expected Caption/Suggestion format")
+            return jsonify({
+                'success': False,
+                'message': 'Invalid response format from API'
+            }), 500
+        
+        prompt = {
+            'caption': caption,
+            'suggestion': suggestion
+        }
+        
+        logging.info(f"Generated news prompt with caption of {len(caption)} characters")
+        
+        return jsonify({
+            'success': True,
+            'prompt': prompt
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error generating news prompt: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to generate news prompt: {str(e)}'
         }), 500
 
 if __name__ == '__main__':

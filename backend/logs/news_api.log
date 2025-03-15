@@ -1,0 +1,129 @@
+2025-03-16 02:11:48,354 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:11:48,355 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:11:48,355 - modules.news_integration - INFO - Fetching news for country: in, limit: 5
+2025-03-16 02:11:48,356 - modules.news_integration - DEBUG - Request URL: https://newsapi.org/v2/top-headlines
+2025-03-16 02:11:48,356 - modules.news_integration - DEBUG - Request params: {"country": "in", "apiKey": "e15f...7e93", "pageSize": 5}
+2025-03-16 02:11:48,356 - modules.news_integration - INFO - Testing News API key validity...
+2025-03-16 02:11:49,275 - modules.news_integration - INFO - Sources API response status: 200
+2025-03-16 02:11:49,277 - modules.news_integration - INFO - API key is valid!
+2025-03-16 02:11:50,514 - modules.news_integration - INFO - NewsAPI response status: 200
+2025-03-16 02:11:50,518 - modules.news_integration - DEBUG - NewsAPI response data: {"status": "ok", "totalResults": 0, "articles": []}...
+2025-03-16 02:11:50,518 - modules.news_integration - INFO - Received 0 articles from NewsAPI
+2025-03-16 02:11:50,518 - modules.news_integration - WARNING - No articles returned from NewsAPI, returning sample data
+2025-03-16 02:13:34,912 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:13:34,913 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:13:34,913 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 5
+2025-03-16 02:13:36,195 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:13:36,195 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:13:36,197 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:13:37,450 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:13:37,971 - modules.news_integration - INFO - Received 5 articles from country sources
+2025-03-16 02:13:37,974 - modules.news_integration - INFO - Total articles collected: 5
+2025-03-16 02:16:19,962 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:16:19,963 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:16:19,964 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 5
+2025-03-16 02:16:21,185 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:16:21,186 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:16:21,188 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:16:21,676 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:16:22,181 - modules.news_integration - INFO - Received 5 articles from country sources
+2025-03-16 02:16:22,184 - modules.news_integration - INFO - Fetching news by keywords: India OR Delhi OR Mumbai OR Bangalore
+2025-03-16 02:16:23,497 - modules.news_integration - INFO - Received 3 articles from keyword search
+2025-03-16 02:16:23,499 - modules.news_integration - INFO - Total articles collected: 5
+2025-03-16 02:17:00,712 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:17:00,712 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:17:00,714 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 20
+2025-03-16 02:17:02,034 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:17:02,035 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:17:02,040 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:17:03,372 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:17:04,272 - modules.news_integration - INFO - Received 20 articles from country sources
+2025-03-16 02:17:04,279 - modules.news_integration - INFO - Fetching news by keywords: India OR Delhi OR Mumbai OR Bangalore
+2025-03-16 02:17:05,486 - modules.news_integration - INFO - Received 8 articles from keyword search
+2025-03-16 02:17:05,491 - modules.news_integration - INFO - Total articles collected: 20
+2025-03-16 02:17:05,496 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:17:05,496 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:17:05,496 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 20
+2025-03-16 02:17:06,774 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:17:06,774 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:17:06,779 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:17:07,300 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:17:08,099 - modules.news_integration - INFO - Received 20 articles from country sources
+2025-03-16 02:17:08,105 - modules.news_integration - INFO - Fetching news by keywords: India OR Delhi OR Mumbai OR Bangalore
+2025-03-16 02:17:09,401 - modules.news_integration - INFO - Received 8 articles from keyword search
+2025-03-16 02:17:09,405 - modules.news_integration - INFO - Total articles collected: 20
+2025-03-16 02:18:38,895 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:18:38,895 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:18:38,897 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 20
+2025-03-16 02:18:39,471 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:18:39,471 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:18:39,474 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:18:40,786 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:18:42,388 - modules.news_integration - INFO - Received 20 articles from country sources
+2025-03-16 02:18:42,394 - modules.news_integration - INFO - Fetching news by keywords: India OR Delhi OR Mumbai OR Bangalore
+2025-03-16 02:18:43,677 - modules.news_integration - INFO - Received 8 articles from keyword search
+2025-03-16 02:18:43,682 - modules.news_integration - INFO - Total articles collected: 20
+2025-03-16 02:18:43,690 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:18:43,691 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:18:43,691 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 20
+2025-03-16 02:18:45,027 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:18:45,027 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:18:45,029 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:18:45,606 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:18:46,412 - modules.news_integration - INFO - Received 20 articles from country sources
+2025-03-16 02:18:46,421 - modules.news_integration - INFO - Fetching news by keywords: India OR Delhi OR Mumbai OR Bangalore
+2025-03-16 02:18:46,994 - modules.news_integration - INFO - Received 8 articles from keyword search
+2025-03-16 02:18:46,996 - modules.news_integration - INFO - Total articles collected: 20
+2025-03-16 02:19:52,018 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:19:52,020 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:19:52,020 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:19:52,020 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:19:52,021 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 20
+2025-03-16 02:19:52,021 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 20
+2025-03-16 02:19:52,635 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:19:52,635 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:19:52,636 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:19:53,386 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:19:53,386 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:19:53,388 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:19:53,796 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:19:53,884 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:19:54,559 - modules.news_integration - INFO - Received 20 articles from country sources
+2025-03-16 02:19:54,562 - modules.news_integration - INFO - Fetching news by keywords: India OR Delhi OR Mumbai OR Bangalore
+2025-03-16 02:19:54,606 - modules.news_integration - INFO - Received 20 articles from country sources
+2025-03-16 02:19:54,609 - modules.news_integration - INFO - Fetching news by keywords: India OR Delhi OR Mumbai OR Bangalore
+2025-03-16 02:19:55,121 - modules.news_integration - INFO - Received 8 articles from keyword search
+2025-03-16 02:19:55,123 - modules.news_integration - INFO - Total articles collected: 20
+2025-03-16 02:19:55,166 - modules.news_integration - INFO - Received 8 articles from keyword search
+2025-03-16 02:19:55,169 - modules.news_integration - INFO - Total articles collected: 20
+2025-03-16 02:20:03,726 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:20:03,726 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:20:03,727 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 20
+2025-03-16 02:20:03,728 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:20:03,729 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:20:03,729 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 20
+2025-03-16 02:20:04,299 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:20:04,299 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:20:04,301 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:20:04,950 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:20:04,950 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:20:04,952 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:20:05,555 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:20:06,064 - modules.news_integration - INFO - Received 20 articles from country sources
+2025-03-16 02:20:06,067 - modules.news_integration - INFO - Fetching news by keywords: India OR Delhi OR Mumbai OR Bangalore
+2025-03-16 02:20:06,103 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:20:06,661 - modules.news_integration - INFO - Received 20 articles from country sources
+2025-03-16 02:20:06,663 - modules.news_integration - INFO - Fetching news by keywords: India OR Delhi OR Mumbai OR Bangalore
+2025-03-16 02:20:07,260 - modules.news_integration - INFO - Received 8 articles from keyword search
+2025-03-16 02:20:07,262 - modules.news_integration - INFO - Total articles collected: 20
+2025-03-16 02:20:07,805 - modules.news_integration - INFO - Received 8 articles from keyword search
+2025-03-16 02:20:07,807 - modules.news_integration - INFO - Total articles collected: 20
+2025-03-16 02:25:06,662 - modules.news_integration - INFO - NewsAPI key is configured: e15f...7e93
+2025-03-16 02:25:06,663 - modules.news_integration - DEBUG - NEWS_API_KEY from Config: e15fa34c841440f9be618811e3dc7e93
+2025-03-16 02:25:06,663 - modules.news_integration - INFO - Fetching top headlines for country: in, limit: 1
+2025-03-16 02:25:07,807 - modules.news_integration - INFO - Top headlines response status: 200
+2025-03-16 02:25:07,807 - modules.news_integration - INFO - Received 0 top headline articles for in
+2025-03-16 02:25:07,809 - modules.news_integration - INFO - Fetching sources for country: in
+2025-03-16 02:25:08,289 - modules.news_integration - INFO - Fetching news from sources: google-news-in,the-hindu,the-times-of-india
+2025-03-16 02:25:09,439 - modules.news_integration - INFO - Received 1 articles from country sources
+2025-03-16 02:25:09,442 - modules.news_integration - INFO - Total articles collected: 1

@@ -1,102 +1,177 @@
 import React, { useState } from 'react';
-import MemeGenerator from './components/MemeGenerator';
-import BrandInput from './components/BrandInput';
 import './App.css';
+import BrandInput from './components/BrandInput';
+import MemeGenerator from './components/MemeGenerator';
+import PromptSuggestions from './components/PromptSuggestions';
+import TopicalNews from './components/TopicalNews';
+import { generatePrompts } from './api';
 
 function App() {
   const [brandData, setBrandData] = useState(null);
-  const [activeTab, setActiveTab] = useState('brand'); // 'brand' or 'meme'
+  const [activeTab, setActiveTab] = useState('brand-input');
+  const [selectedPrompt, setSelectedPrompt] = useState('');
+  const [prompts, setPrompts] = useState([]);
+  const [loadingPrompts, setLoadingPrompts] = useState(false);
+  const [promptError, setPromptError] = useState(null);
 
   const handleBrandData = (data) => {
-    setBrandData(data);
-    // After getting brand data, switch to the meme generator tab
-    setActiveTab('meme');
+    console.log('App - Received brand data with raw_text:', 
+      data.raw_text ? 
+      `${data.raw_text.substring(0, 100)}... (${data.raw_text.length} chars)` : 
+      'No raw_text');
+    
+    if (data && data.success) {
+      if (!data.raw_text || data.raw_text.trim() === '') {
+        console.error('WARNING: Brand data is missing raw_text or it is empty!', data);
+        data.raw_text = `Brand Name: ${data.brand_name || 'Unknown brand'}\nCategory: ${data.category || 'Unknown category'}\nCountry: ${data.country || 'Unknown country'}`;
+        console.log('Added minimal fallback text:', data.raw_text);
+      }
+      
+      setBrandData(data);
+      generateMemePrompts(data);
+      setActiveTab('prompt-selection');
+    } else {
+      console.error('Invalid brand data received:', data);
+    }
+  };
+  
+  const generateMemePrompts = async (data) => {
+    console.log('App - generateMemePrompts called with raw_text:', 
+      data.raw_text ? 
+      `${data.raw_text.substring(0, 100)}... (${data.raw_text.length} chars)` : 
+      'No raw_text');
+    
+    setLoadingPrompts(true);
+    setPromptError(null);
+    
+    try {
+      const result = await generatePrompts(data);
+      
+      if (result.success && result.prompts && result.prompts.length > 0) {
+        setPrompts(result.prompts);
+      } else {
+        setPromptError(result.message || 'Failed to generate prompt suggestions');
+      }
+    } catch (err) {
+      console.error('Error generating prompts:', err);
+      setPromptError('An error occurred while generating prompt suggestions');
+    } finally {
+      setLoadingPrompts(false);
+    }
   };
 
-  // Helper to generate meme text suggestions from brand data
-  const getMemeTextSuggestions = () => {
-    if (!brandData) return [];
+  const handleSelectPrompt = (prompt) => {
+    setSelectedPrompt(prompt);
+    // Auto-advance to meme generation when a prompt is selected
+    setActiveTab('generate-meme');
+  };
 
+  // Original function to generate meme text suggestions based on brand data
+  const getMemeTextSuggestions = () => {
+    if (!brandData || !brandData.success) return [];
+    
     const suggestions = [];
-    const name = brandData.brand_name;
+    const brandName = brandData.brand_name || '';
+    const tagline = brandData.tagline || '';
+    const products = brandData.products || [];
     
-    if (brandData.tagline) {
-      suggestions.push(`When ${name}'s slogan "${brandData.tagline}" actually comes true`);
+    if (tagline) {
+      suggestions.push(`When ${brandName} says "${tagline}"`);
+      suggestions.push(`${brandName}: "${tagline}" Me:`);
     }
     
-    if (brandData.products && brandData.products.length > 0) {
-      const product = brandData.products[0];
-      suggestions.push(`When you finally get your hands on ${name}'s new ${product}`);
+    if (products && products.length > 0) {
+      suggestions.push(`Me after using ${brandName}'s ${products[0]} for the first time`);
+      if (products.length > 1) {
+        suggestions.push(`Choosing between ${products[0]} and ${products[1]} from ${brandName}`);
+      }
     }
     
-    suggestions.push(`When people ask why you love ${name} so much`);
-    suggestions.push(`${name} customer service be like...`);
+    suggestions.push(`Everyone else: Normal brands. ${brandName}:`);
     
     return suggestions;
   };
 
   return (
-    <div className="App">
-      <header className="bg-dark text-white p-4 mb-4">
+    <div className="app-container">
+      <header className="app-header">
         <div className="container">
-          <h1 className="display-4">D2C Brand Meme Generator</h1>
-          <p className="lead">
-            Generate engaging memes for your brand in seconds
-          </p>
+          <h1 className="display-4 text-center mb-3">Brand Meme Generator</h1>
+          <p className="lead text-center">Create viral memes for your favorite brands with AI</p>
         </div>
       </header>
       
-      <main className="container mb-5">
+      <main className="container my-4">
         <ul className="nav nav-tabs mb-4">
           <li className="nav-item">
             <button 
-              className={`nav-link ${activeTab === 'brand' ? 'active' : ''}`} 
-              onClick={() => setActiveTab('brand')}
+              className={`nav-link ${activeTab === 'brand-input' ? 'active' : ''}`}
+              onClick={() => setActiveTab('brand-input')}
             >
-              1. Brand Information
+              1. Brand Info
             </button>
           </li>
           <li className="nav-item">
             <button 
-              className={`nav-link ${activeTab === 'meme' ? 'active' : ''}`} 
-              onClick={() => setActiveTab('meme')}
+              className={`nav-link ${activeTab === 'prompt-selection' ? 'active' : ''}`}
+              onClick={() => setActiveTab('prompt-selection')}
               disabled={!brandData}
             >
-              2. Generate Memes
+              2. Select Prompt
+            </button>
+          </li>
+          <li className="nav-item">
+            <button 
+              className={`nav-link ${activeTab === 'topical-news' ? 'active' : ''}`}
+              onClick={() => setActiveTab('topical-news')}
+              disabled={!brandData}
+            >
+              3. Topical News
+            </button>
+          </li>
+          <li className="nav-item">
+            <button 
+              className={`nav-link ${activeTab === 'generate-meme' ? 'active' : ''}`}
+              onClick={() => setActiveTab('generate-meme')}
+              disabled={!selectedPrompt}
+            >
+              4. Generate Meme
             </button>
           </li>
         </ul>
         
-        {activeTab === 'brand' ? (
-          <BrandInput onBrandData={handleBrandData} />
-        ) : (
-          <div>
-            {brandData && (
-              <div className="alert alert-success mb-4">
-                <h3 className="h5">Using Brand: {brandData.brand_name}</h3>
-                <p className="mb-0">
-                  Now create memes based on your brand information!
-                  <button 
-                    className="btn btn-sm btn-outline-primary ms-3"
-                    onClick={() => setActiveTab('brand')}
-                  >
-                    Change Brand
-                  </button>
-                </p>
-              </div>
-            )}
-            <MemeGenerator 
+        <div className="tab-content">
+          {activeTab === 'brand-input' && (
+            <BrandInput onBrandData={handleBrandData} />
+          )}
+          
+          {activeTab === 'prompt-selection' && (
+            <PromptSuggestions
               brandData={brandData}
-              textSuggestions={getMemeTextSuggestions()}
+              onPromptSelect={handleSelectPrompt}
             />
-          </div>
-        )}
+          )}
+          
+          {activeTab === 'topical-news' && (
+            <TopicalNews
+              brandData={brandData}
+              onPromptGenerated={handleSelectPrompt}
+            />
+          )}
+          
+          {activeTab === 'generate-meme' && (
+            <MemeGenerator
+              prompt={selectedPrompt}
+              brandData={brandData}
+            />
+          )}
+        </div>
       </main>
       
-      <footer className="bg-dark text-white p-3 text-center">
-        <div className="container">
-          <p className="mb-0">
-            &copy; {new Date().getFullYear()} D2C Brand Meme Generator
+      <footer className="app-footer mt-auto py-3 bg-light">
+        <div className="container text-center">
+          <p className="text-muted mb-0">
+            &copy; {new Date().getFullYear()} Brand Meme Generator. All rights reserved.
           </p>
         </div>
       </footer>

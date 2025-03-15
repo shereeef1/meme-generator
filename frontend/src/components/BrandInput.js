@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { scrapeBrandData } from '../api';
+import React, { useState, useEffect } from 'react';
+import { scrapeBrandData, getDocuments, deleteDocument, updateDocument } from '../api';
 
 const CATEGORIES = [
   { value: '', label: 'Select a category (optional)' },
@@ -27,52 +27,238 @@ const COUNTRIES = [
 ];
 
 const BrandInput = ({ onBrandData }) => {
+  const [inputMethod, setInputMethod] = useState('scrape');
   const [url, setUrl] = useState('');
   const [category, setCategory] = useState('');
   const [country, setCountry] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [brandData, setBrandData] = useState(null);
+  const [isTextConfirmed, setIsTextConfirmed] = useState(false);
+  const [showRawText, setShowRawText] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [fileInputKey, setFileInputKey] = useState(Date.now());
+
+  const resetForm = () => {
+    setUrl('');
+    setCategory('');
+    setCountry('');
+    setUploadedFile(null);
+    setError(null);
+    setBrandData(null);
+    setIsTextConfirmed(false);
+    setShowRawText(false);
+    setFileInputKey(Date.now());
+  };
+
+  useEffect(() => {
+    resetForm();
+  }, [inputMethod]);
+
+  useEffect(() => {
+    if (selectedDocument) {
+      setEditContent(selectedDocument.content || '');
+      setEditMode(false);
+    } else {
+      setEditContent('');
+      setEditMode(false);
+    }
+  }, [selectedDocument]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [currentPage]);
+
+  const loadDocuments = async () => {
+    try {
+      const response = await getDocuments(currentPage);
+      if (response.success) {
+        setDocuments(response.documents);
+        setTotalPages(Math.ceil(response.total / response.per_page));
+      }
+    } catch (err) {
+      console.error('Error loading documents:', err);
+      setError('Failed to load document history');
+    }
+  };
+
+  const handleDeleteDocument = async (docId) => {
+    if (window.confirm('Are you sure you want to delete this document?')) {
+      try {
+        const response = await deleteDocument(docId);
+        if (response.success) {
+          await loadDocuments();
+          setSelectedDocument(null);
+        } else {
+          setError('Failed to delete document');
+        }
+      } catch (err) {
+        console.error('Error deleting document:', err);
+        setError('Failed to delete document');
+      }
+    }
+  };
+
+  const handleUpdateDocument = async () => {
+    try {
+      const response = await updateDocument(selectedDocument.id, editContent);
+      if (response.success) {
+        setEditMode(false);
+        await loadDocuments();
+        setSelectedDocument(null);
+      } else {
+        setError('Failed to update document');
+      }
+    } catch (err) {
+      console.error('Error updating document:', err);
+      setError('Failed to update document');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!url.trim()) {
+    if (inputMethod === 'scrape' && !url.trim()) {
       setError('Please enter a valid URL');
       return;
     }
+
+    if (inputMethod === 'upload' && !uploadedFile) {
+      setError('Please upload a file');
+      return;
+    }
     
-    // Clear previous results
     setError(null);
     setBrandData(null);
     setLoading(true);
+    setIsTextConfirmed(false);
     
     try {
-      // Add protocol if missing
-      let formattedUrl = url;
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        formattedUrl = `https://${url}`;
-      }
-      
-      // Call the API to scrape brand data
-      const data = await scrapeBrandData(formattedUrl, category || undefined, country || undefined);
-      
-      if (data.success) {
-        setBrandData(data);
+      if (inputMethod === 'scrape') {
+        let formattedUrl = url;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          formattedUrl = `https://${url}`;
+        }
         
-        // Pass the brand data to the parent component
-        if (onBrandData && typeof onBrandData === 'function') {
-          onBrandData(data);
+        console.log(`BrandInput - Scraping data from: ${formattedUrl}`);
+        const data = await scrapeBrandData(formattedUrl, category || undefined, country || undefined);
+        
+        if (data.success) {
+          console.log(`BrandInput - Scraping successful, raw_text length: ${data.raw_text ? data.raw_text.length : 'none'}`);
+          if (!data.raw_text || data.raw_text.trim() === '') {
+            console.error('BrandInput - Warning: Scraped data has empty raw_text!');
+            // Provide a basic default
+            data.raw_text = `Data scraped from ${formattedUrl}\nBrand: ${data.brand_name || url}`;
+          }
+          setBrandData(data);
+          setShowRawText(true);
+        } else {
+          setError(data.message || 'Failed to scrape brand data');
         }
       } else {
-        setError(data.message || 'Failed to scrape brand data');
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const text = e.target.result;
+          console.log(`BrandInput - File read successful, content length: ${text ? text.length : 'none'}`);
+          
+          if (!text || text.trim() === '') {
+            console.error('BrandInput - Warning: Uploaded file has empty content!');
+            setError('The uploaded file appears to be empty. Please try a different file.');
+            setLoading(false);
+            return;
+          }
+          
+          const data = {
+            success: true,
+            brand_name: uploadedFile.name.replace(/\.[^/.]+$/, ""),
+            raw_text: text,
+            source_url: 'File Upload',
+            category: category || undefined,
+            country: country || undefined
+          };
+          setBrandData(data);
+          setShowRawText(true);
+        };
+        reader.onerror = () => {
+          setError('Error reading the uploaded file');
+        };
+        reader.readAsText(uploadedFile);
       }
     } catch (err) {
-      console.error('Error scraping brand data:', err);
-      setError('An error occurred while scraping the brand data. Please try again.');
+      console.error('Error processing brand data:', err);
+      setError('An error occurred while processing the data. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.type === 'text/plain' || file.type === 'application/msword' || 
+          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        setUploadedFile(file);
+        setError(null);
+        
+        // Read file content as text
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const text = e.target.result;
+          const data = {
+            success: true,
+            brand_name: file.name.replace(/\.[^/.]+$/, ""),
+            raw_text: text,
+            source_url: 'File Upload',
+            category: category || undefined,
+            country: country || undefined
+          };
+          setBrandData(data);
+          setShowRawText(true);
+        };
+        reader.onerror = () => {
+          setError('Error reading the uploaded file');
+          setUploadedFile(null);
+        };
+        
+        // Read as text for all file types
+        reader.readAsText(file);
+      } else {
+        setError('Please upload a .txt or .doc/.docx file');
+        e.target.value = '';
+        setUploadedFile(null);
+      }
+    } else {
+      setUploadedFile(null);
+    }
+  };
+
+  const handleConfirmText = () => {
+    setIsTextConfirmed(true);
+    if (onBrandData && typeof onBrandData === 'function') {
+      console.log('BrandInput - Sending brand data with raw_text:', 
+        brandData.raw_text ? 
+        `${brandData.raw_text.substring(0, 100)}... (${brandData.raw_text.length} chars)` : 
+        'No raw_text');
+      onBrandData(brandData);
+    }
+  };
+
+  const downloadRawText = () => {
+    const blob = new Blob([brandData.raw_text], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${brandData.brand_name.toLowerCase().replace(/\s+/g, '-')}-content.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   };
 
   return (
@@ -87,117 +273,298 @@ const BrandInput = ({ onBrandData }) => {
           </div>
         )}
         
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label htmlFor="brandUrl" className="form-label">
-              Enter Brand Website URL
-            </label>
-            <input
-              type="text"
-              id="brandUrl"
-              className="form-control"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="e.g., nike.com or https://www.apple.com"
-              required
-            />
-            <div className="form-text">
-              We'll scrape brand information to create relevant memes.
+        <ul className="nav nav-tabs mb-4">
+          <li className="nav-item">
+            <button 
+              className={`nav-link ${!selectedDocument ? 'active' : ''}`}
+              onClick={() => setSelectedDocument(null)}
+            >
+              New Document
+            </button>
+          </li>
+          <li className="nav-item">
+            <button 
+              className={`nav-link ${selectedDocument ? 'active' : ''}`}
+              onClick={() => loadDocuments()}
+            >
+              Document History
+            </button>
+          </li>
+        </ul>
+
+        {!selectedDocument ? (
+          <>
+            <div className="mb-4">
+              <div className="btn-group w-100" role="group">
+                <input
+                  type="radio"
+                  className="btn-check"
+                  name="inputMethod"
+                  id="scrapeMethod"
+                  checked={inputMethod === 'scrape'}
+                  onChange={() => setInputMethod('scrape')}
+                />
+                <label className="btn btn-outline-primary" htmlFor="scrapeMethod">
+                  <i className="bi bi-globe me-2"></i>
+                  Scrape Website
+                </label>
+
+                <input
+                  type="radio"
+                  className="btn-check"
+                  name="inputMethod"
+                  id="uploadMethod"
+                  checked={inputMethod === 'upload'}
+                  onChange={() => setInputMethod('upload')}
+                />
+                <label className="btn btn-outline-primary" htmlFor="uploadMethod">
+                  <i className="bi bi-file-earmark-text me-2"></i>
+                  Upload File
+                </label>
+              </div>
             </div>
-          </div>
-          
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <label htmlFor="category" className="form-label">
-                Brand Category
-              </label>
-              <select
-                id="category"
-                className="form-select"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {CATEGORIES.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="col-md-6 mb-3">
-              <label htmlFor="country" className="form-label">
-                Primary Market
-              </label>
-              <select
-                id="country"
-                className="form-select"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-              >
-                {COUNTRIES.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={loading || !url.trim()}
-          >
-            {loading ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Scraping...
-              </>
-            ) : (
-              'Get Brand Data'
-            )}
-          </button>
-        </form>
-        
-        {/* Display brand data if available */}
-        {brandData && (
-          <div className="mt-4">
-            <h3 className="h5 mb-3">Brand Information</h3>
-            <div className="card bg-light">
-              <div className="card-body">
-                <h4 className="h6">{brandData.brand_name}</h4>
-                {brandData.tagline && (
-                  <p className="fst-italic mb-2">"{brandData.tagline}"</p>
-                )}
-                
-                {brandData.description && (
-                  <div className="mb-3">
-                    <strong>Description:</strong>
-                    <p className="small mb-2">{brandData.description}</p>
+
+            <form onSubmit={handleSubmit}>
+              {inputMethod === 'scrape' ? (
+                <div className="mb-3">
+                  <label htmlFor="brandUrl" className="form-label">
+                    Enter Brand Website URL
+                  </label>
+                  <input
+                    type="text"
+                    id="brandUrl"
+                    className="form-control"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="e.g., nike.com or https://www.apple.com"
+                    required={inputMethod === 'scrape'}
+                  />
+                  <div className="form-text">
+                    We'll scrape the website content for analysis.
                   </div>
-                )}
+                </div>
+              ) : (
+                <div className="mb-3">
+                  <label htmlFor="fileUpload" className="form-label">
+                    Upload Brand Information File
+                  </label>
+                  <input
+                    type="file"
+                    id="fileUpload"
+                    key={fileInputKey}
+                    className="form-control"
+                    onChange={handleFileUpload}
+                    accept=".txt,.doc,.docx"
+                    required={inputMethod === 'upload'}
+                  />
+                  <div className="form-text">
+                    Upload a text or Word document containing your brand information.
+                  </div>
+                </div>
+              )}
+              
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <label htmlFor="category" className="form-label">
+                    Brand Category
+                  </label>
+                  <select
+                    id="category"
+                    className="form-select"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  >
+                    {CATEGORIES.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 
-                {brandData.products && brandData.products.length > 0 && (
-                  <div className="mb-3">
-                    <strong>Products/Keywords:</strong>
-                    <ul className="list-unstyled mb-0">
-                      {brandData.products.map((product, index) => (
-                        <li key={index} className="badge bg-primary me-2 mb-2">
-                          {product}
+                <div className="col-md-6 mb-3">
+                  <label htmlFor="country" className="form-label">
+                    Primary Market
+                  </label>
+                  <select
+                    id="country"
+                    className="form-select"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                  >
+                    {COUNTRIES.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading || (inputMethod === 'scrape' && !url.trim()) || (inputMethod === 'upload' && !uploadedFile)}
+              >
+                {loading ? (
+                  <span>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    {inputMethod === 'scrape' ? 'Scraping Website...' : 'Processing File...'}
+                  </span>
+                ) : (
+                  inputMethod === 'scrape' ? 'Get Brand Data' : 'Process File'
+                )}
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="document-history">
+            <div className="row">
+              <div className="col-md-4">
+                <div className="list-group">
+                  {documents.map(doc => (
+                    <button
+                      key={doc.id}
+                      className={`list-group-item list-group-item-action ${selectedDocument?.id === doc.id ? 'active' : ''}`}
+                      onClick={() => setSelectedDocument(doc)}
+                    >
+                      <div className="d-flex w-100 justify-content-between">
+                        <h6 className="mb-1">{doc.filename}</h6>
+                        <small>{new Date(doc.created_at).toLocaleDateString()}</small>
+                      </div>
+                      <p className="mb-1">{doc.category || 'No category'}</p>
+                      <small>{doc.country || 'No country specified'}</small>
+                    </button>
+                  ))}
+                </div>
+                
+                {totalPages > 1 && (
+                  <div className="d-flex justify-content-center mt-3">
+                    <nav>
+                      <ul className="pagination">
+                        <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                          <button
+                            className="page-link"
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            disabled={currentPage === 1}
+                          >
+                            Previous
+                          </button>
                         </li>
-                      ))}
-                    </ul>
+                        <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                          <button
+                            className="page-link"
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            disabled={currentPage === totalPages}
+                          >
+                            Next
+                          </button>
+                        </li>
+                      </ul>
+                    </nav>
+                  </div>
+                )}
+              </div>
+              
+              <div className="col-md-8">
+                {selectedDocument && (
+                  <div className="card">
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                      <h5 className="mb-0">Document Details</h5>
+                      <div>
+                        <button
+                          className="btn btn-sm btn-outline-primary me-2"
+                          onClick={() => {
+                            setEditMode(!editMode);
+                            setEditContent(selectedDocument.content);
+                          }}
+                        >
+                          {editMode ? 'Cancel Edit' : 'Edit'}
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleDeleteDocument(selectedDocument.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <div className="card-body">
+                      {editMode ? (
+                        <>
+                          <textarea
+                            className="form-control mb-3"
+                            rows="10"
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                          />
+                          <button
+                            className="btn btn-primary"
+                            onClick={handleUpdateDocument}
+                          >
+                            Save Changes
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p><strong>Source:</strong> {selectedDocument.source_url}</p>
+                          <p><strong>Category:</strong> {selectedDocument.category || 'Not specified'}</p>
+                          <p><strong>Country:</strong> {selectedDocument.country || 'Not specified'}</p>
+                          <p><strong>Created:</strong> {new Date(selectedDocument.created_at).toLocaleString()}</p>
+                          <hr />
+                          <div className="document-content">
+                            <pre className="bg-light p-3 rounded">
+                              {selectedDocument.content}
+                            </pre>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {brandData && !isTextConfirmed && (
+          <div className="mt-4">
+            <div className="card">
+              <div className="card-header">
+                <h5 className="mb-0">Review Content</h5>
+              </div>
+              <div className="card-body">
+                <div className="mb-3">
+                  <button
+                    className="btn btn-link p-0"
+                    onClick={() => setShowRawText(!showRawText)}
+                  >
+                    {showRawText ? 'Hide Raw Text' : 'Show Raw Text'}
+                  </button>
+                </div>
+                
+                {showRawText && (
+                  <div className="mb-3">
+                    <div className="bg-light p-3 rounded" style={{ maxHeight: '300px', overflow: 'auto' }}>
+                      <pre className="mb-0">{brandData.raw_text}</pre>
+                    </div>
+                    <button
+                      className="btn btn-sm btn-outline-secondary mt-2"
+                      onClick={downloadRawText}
+                    >
+                      Download Raw Text
+                    </button>
                   </div>
                 )}
                 
-                <div className="d-flex justify-content-between mt-3 small text-muted">
-                  <span>
-                    Category: {brandData.category || 'Not specified'}
-                  </span>
-                  <span>
-                    Source: <a href={brandData.source_url} target="_blank" rel="noopener noreferrer">Website</a>
-                  </span>
+                <div className="d-flex justify-content-end">
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleConfirmText}
+                    disabled={loading}
+                  >
+                    Confirm & Continue
+                  </button>
                 </div>
               </div>
             </div>

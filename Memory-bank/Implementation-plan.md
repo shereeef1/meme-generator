@@ -39,3 +39,4 @@
 
 - **Task:** Implement user authentication using Firebase Authentication after validating core product value.
 - **Test:** Register a test user and verify login functionality.
+ 
