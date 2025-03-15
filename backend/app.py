@@ -19,6 +19,9 @@ from modules.news_integration import NewsIntegration
 # from modules.export import MemeExport
 # from firebase_config import db, storage_bucket
 
+# Import the enhanced research module
+from modules.enhanced_research import EnhancedResearch
+
 # Load environment variables
 load_dotenv()
 
@@ -40,6 +43,10 @@ brand_scraper = BrandScraper()
 prompt_generator = PromptGenerator()
 file_processor = FileProcessor()
 doc_manager = DocumentManager()
+news_integration = NewsIntegration()
+
+# Initialize the enhanced research coordinator
+enhanced_research = EnhancedResearch(brand_scraper, news_integration, doc_manager)
 
 # Simple health check route
 @app.route('/api/health', methods=['GET'])
@@ -188,9 +195,11 @@ def get_news():
         # Get limit parameter from query string, default to 20
         limit = request.args.get('limit', 20, type=int)
         
-        # Fetch news using NewsIntegration
-        news_integration = NewsIntegration()
-        news_articles = news_integration.get_top_news(limit=limit)
+        # Get days parameter, default to 14 (2 weeks)
+        days = request.args.get('days', 14, type=int)
+        
+        # Use the globally initialized news_integration
+        news_articles = news_integration.get_top_news(limit=limit, days=days)
         
         return jsonify({
             "success": True,
@@ -729,6 +738,82 @@ Important requirements:
         return jsonify({
             'success': False,
             'message': f'Failed to generate news prompt: {str(e)}'
+        }), 500
+
+# Route for enhanced brand research
+@app.route('/api/enhanced-brand-research', methods=['POST'])
+def enhanced_brand_research():
+    try:
+        app.logger.info("Received enhanced brand research request")
+        data = request.get_json()
+        
+        if not data:
+            app.logger.warning("No data provided in enhanced research request")
+            return jsonify({
+                "success": False,
+                "error": "No data provided",
+                "message": "Please provide brand details for research"
+            }), 400
+            
+        brand_name = data.get('brand_name')
+        
+        if not brand_name:
+            app.logger.warning("No brand name provided in enhanced research request")
+            return jsonify({
+                "success": False,
+                "error": "No brand name provided",
+                "message": "Please provide a brand name for research"
+            }), 400
+            
+        category = data.get('category')
+        country = data.get('country')
+        include_competitors = data.get('include_competitors', True)
+        include_trends = data.get('include_trends', True)
+        
+        app.logger.info(f"Starting enhanced research for brand: {brand_name}")
+        # Set a timeout for the research operation
+        start_time = time.time()
+        
+        # Perform the enhanced research
+        result = enhanced_research.research_brand(
+            brand_name=brand_name,
+            category=category,
+            country=country,
+            include_competitors=include_competitors,
+            include_trends=include_trends
+        )
+        
+        # Log the time taken
+        elapsed_time = time.time() - start_time
+        app.logger.info(f"Enhanced research completed in {elapsed_time:.2f} seconds. Success: {result['success']}")
+        
+        # Check if the raw_text is empty and log it
+        if not result.get("raw_text") or not result["raw_text"].strip():
+            app.logger.warning(f"Enhanced research completed but raw_text is empty for brand: {brand_name}")
+            # Add a minimal fallback text
+            result["raw_text"] = f"Enhanced research for {brand_name}. Limited information available."
+        
+        # Always return a 200 status with the result, even if some parts failed
+        # The frontend can handle partial failures using result["success"] and result["partial_failures"]
+        if result["success"]:
+            app.logger.info(f"Enhanced research successful for {brand_name}")
+            
+            # Check if there were partial failures
+            if result.get("partial_failures") and len(result["partial_failures"]) > 0:
+                app.logger.warning(f"Enhanced research had partial failures: {result['partial_failures']}")
+        else:
+            # If complete failure (all sources failed), log it but still send a 200 status
+            app.logger.error(f"Enhanced research failed completely: {result.get('error', 'Unknown error')}")
+        
+        return jsonify(result)
+            
+    except Exception as e:
+        app.logger.error(f"Server error in enhanced_brand_research: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": f"Server error: {str(e)}",
+            "message": "An error occurred during enhanced brand research"
         }), 500
 
 if __name__ == '__main__':

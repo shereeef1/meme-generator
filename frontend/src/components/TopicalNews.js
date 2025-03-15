@@ -32,15 +32,15 @@ function TopicalNews({ brandData, onPromptGenerated }) {
     setError(null);
 
     try {
-      // Use the fetchNews API function to get 20 trending news articles
-      console.log("TopicalNews - Fetching news from API...");
-      const result = await fetchNews(20);
+      // Use the fetchNews API function to get 20 trending news articles from the last 14 days
+      console.log("TopicalNews - Fetching trending news from the last 14 days");
+      const result = await fetchNews(20, 14); // 20 articles, last 14 days
       
       if (!result.success) {
         throw new Error(result.message || 'Failed to fetch news');
       }
       
-      console.log(`TopicalNews - Successfully fetched ${result.news.length} news articles`);
+      console.log(`TopicalNews - Successfully fetched ${result.news.length} trending news articles`);
       setNews(result.news);
     } catch (e) {
       console.error('Error fetching news:', e);
@@ -82,6 +82,7 @@ Title: ${selectedNews.title}
 Description: ${selectedNews.description}
 Content: ${selectedNews.content || ''}
 Source: ${selectedNews.source || ''}
+URL: ${selectedNews.url || ''}
 ===============================
 
 `;
@@ -113,6 +114,14 @@ Source: ${selectedNews.source || ''}
       setPromptError('An error occurred while generating the prompt');
     } finally {
       setGeneratingPrompt(false);
+    }
+  };
+
+  // Handler for opening news link in new tab
+  const handleNewsLinkClick = (e, url) => {
+    e.stopPropagation(); // Prevent the card click event from firing
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -172,7 +181,20 @@ Source: ${selectedNews.source || ''}
                     >
                       <div className="card-body">
                         <h5 className="card-title">{article.title}</h5>
-                        <h6 className="card-subtitle mb-2 text-muted">{article.source}</h6>
+                        <h6 className="card-subtitle mb-2 text-muted">
+                          {article.source}
+                          {article.url && (
+                            <span className="ms-2">
+                              <a
+                                href="#"
+                                onClick={(e) => handleNewsLinkClick(e, article.url)}
+                                className="news-link"
+                              >
+                                <i className="bi bi-link-45deg"></i> Read full article
+                              </a>
+                            </span>
+                          )}
+                        </h6>
                         <p className="card-text">{article.description}</p>
                       </div>
                     </div>
@@ -188,6 +210,17 @@ Source: ${selectedNews.source || ''}
                     {selectedNews ? (
                       <>
                         <p>Selected article: <strong>{selectedNews.title}</strong></p>
+                        {selectedNews.url && (
+                          <p className="news-url">
+                            <a
+                              href="#"
+                              onClick={(e) => handleNewsLinkClick(e, selectedNews.url)}
+                              className="news-link"
+                            >
+                              <i className="bi bi-link-45deg"></i> View original article
+                            </a>
+                          </p>
+                        )}
                         <button
                           className="btn btn-primary w-100"
                           onClick={handleGeneratePrompt}

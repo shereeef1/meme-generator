@@ -206,13 +206,13 @@ export const uploadBrandFile = async (file, category, country) => {
   }
 };
 
-export const fetchNews = async (limit = 20) => {
+export const fetchNews = async (limit = 20, days = 14) => {
   try {
-    console.log(`API - Fetching ${limit} news articles`);
+    console.log(`API - Fetching ${limit} news articles from the last ${days} days`);
     
     // Use fetchWithTimeout for a 30-second timeout
     const response = await fetchWithTimeout(
-      `${API_BASE_URL}/news?limit=${limit}`, 
+      `${API_BASE_URL}/news?limit=${limit}&days=${days}`, 
       {
         method: 'GET',
         headers: {

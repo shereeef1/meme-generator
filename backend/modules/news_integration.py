@@ -3,6 +3,8 @@ import json
 import logging
 import os
 from config import Config
+from datetime import datetime, timedelta
+import traceback
 
 # Set up a file handler for detailed logging
 log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
@@ -38,100 +40,287 @@ class NewsIntegration:
         # Log the config values for debugging
         self.logger.debug(f"NEWS_API_KEY from Config: {self.api_key}")
     
-    def get_top_news(self, country="in", limit=20):
+    def get_top_news(self, limit=20, days=14):
         """
-        Fetch top news from NewsAPI from multiple sources
+        Get trending news articles.
         
-        Args:
-            country (str): Country code for news (default: "in" for India)
-            limit (int): Maximum number of news articles to return
-            
+        Parameters:
+        - limit (int): Number of articles to return
+        - days (int): Number of past days to include articles from (default: 14 days)
+        
         Returns:
-            list: List of news articles formatted for the frontend
+        - list: List of trending news articles
         """
-        articles = []
+        # Calculate the date range (from days ago to today)
+        from_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        to_date = datetime.now().strftime('%Y-%m-%d')
         
-        try:
-            # Check if API key is configured
-            if not self.api_key:
-                self.logger.error("Cannot fetch news: NewsAPI key is not configured")
-                return self._get_sample_news()
+        logger.info(f"Fetching trending news from {from_date} to {to_date}, limit: {limit}")
+        
+        all_articles = []
+        
+        # Try to get top headlines first
+        country_codes = ['us', 'gb', 'in']  # US, UK, India
+        for country in country_codes:
+            articles = self._get_top_headlines_by_country(country, limit)
+            if articles:
+                # Apply date filter post-retrieval for top headlines
+                filtered_articles = []
+                for article in articles:
+                    if 'publishedAt' in article:
+                        try:
+                            pub_date = datetime.strptime(article['publishedAt'][:10], '%Y-%m-%d')
+                            if (datetime.now() - pub_date).days <= days:
+                                filtered_articles.append(article)
+                        except (ValueError, TypeError):
+                            # If date parsing fails, include the article anyway
+                            filtered_articles.append(article)
+                    else:
+                        # Include articles without date
+                        filtered_articles.append(article)
+                
+                all_articles.extend(filtered_articles)
+                
+        # If not enough articles, try with specific sources
+        if len(all_articles) < limit:
+            sources = [
+                'google-news', 'bbc-news', 'cnn', 'fox-news', 
+                'the-verge', 'techcrunch', 'business-insider',
+                'google-news-in', 'the-hindu', 'the-times-of-india'
+            ]
+            for source in sources:
+                if len(all_articles) >= limit * 2:  # Get double the limit to allow for filtering
+                    break
+                source_articles = self._get_news_by_source(source, limit, from_date, to_date)
+                if source_articles:
+                    all_articles.extend(source_articles)
+        
+        # If still not enough articles, try with keywords
+        if len(all_articles) < limit:
+            keywords = ['trending', 'viral', 'popular', 'breaking news', 'latest']
+            for keyword in keywords:
+                if len(all_articles) >= limit * 2:  # Get double the limit to allow for filtering
+                    break
+                keyword_articles = self._get_news_by_keyword(keyword, limit, from_date, to_date)
+                if keyword_articles:
+                    all_articles.extend(keyword_articles)
+        
+        # Filter duplicate articles based on title
+        unique_articles = []
+        seen_titles = set()
+        for article in all_articles:
+            title = article.get('title', '').lower()
+            if title and title not in seen_titles:
+                seen_titles.add(title)
+                
+                # Filter by date if publishedAt is available
+                if 'publishedAt' in article:
+                    try:
+                        pub_date = datetime.strptime(article['publishedAt'][:10], '%Y-%m-%d')
+                        if (datetime.now() - pub_date).days > days:
+                            continue
+                    except (ValueError, TypeError):
+                        # If date parsing fails, include the article anyway
+                        pass
+                
+                unique_articles.append(article)
+        
+        # Sort articles by popularity indicators:
+        # 1. Has an image
+        # 2. Comes from a reputable source 
+        # 3. More recent articles
+        def sort_key(article):
+            has_image = 1 if article.get('urlToImage') else 0
             
-            # First try from top headlines by country
-            country_articles = self._fetch_top_headlines_by_country(country, limit)
-            articles.extend(country_articles)
+            # Check for reputable sources
+            source = article.get('source', {}).get('name', '').lower()
+            reputable_sources = ['bbc', 'cnn', 'nyt', 'washington post', 'guardian', 
+                              'times', 'forbes', 'bloomberg', 'reuters', 'associated press']
+            source_score = 0
+            for reputable in reputable_sources:
+                if reputable in source:
+                    source_score = 1
+                    break
             
-            # If we don't have enough articles, try sources from that country
-            if len(articles) < limit:
-                source_articles = self._fetch_news_from_sources(country, limit - len(articles))
-                articles.extend(source_articles)
+            # Parse date for recency score
+            recency_score = 0
+            if 'publishedAt' in article:
+                try:
+                    pub_date = datetime.strptime(article['publishedAt'][:19], '%Y-%m-%dT%H:%M:%S')
+                    # More recent = higher score (0-10 range)
+                    days_old = (datetime.now() - pub_date).days
+                    recency_score = max(0, 10 - days_old)
+                except (ValueError, TypeError):
+                    pass
             
-            # If we still don't have enough articles, try a keyword search
-            if len(articles) < limit:
-                keyword_articles = self._fetch_news_by_keywords(country, limit - len(articles))
-                articles.extend(keyword_articles)
-            
-            # If we still don't have articles, try global news
-            if not articles:
-                self.logger.info(f"No articles found for country {country}, trying global news...")
-                global_articles = self._fetch_top_headlines_by_country("us", limit)
-                articles.extend(global_articles)
-            
-            # Still nothing? Return sample data
-            if not articles:
-                self.logger.warning("No articles found from any source, returning sample data")
-                return self._get_sample_news()
-            
-            self.logger.info(f"Total articles collected: {len(articles)}")
-            
-            # Format and return articles
-            formatted_articles = []
-            for idx, article in enumerate(articles[:limit]):
-                formatted_articles.append({
-                    "id": idx + 1,
-                    "title": article.get("title", "No Title"),
-                    "description": article.get("description", "No Description"),
-                    "content": article.get("content", "No Content"),
-                    "url": article.get("url", ""),
-                    "source": article.get("source", {}).get("name", "Unknown Source"),
-                    "publishedAt": article.get("publishedAt", ""),
-                    "imageUrl": article.get("urlToImage", "")
-                })
-            
-            return formatted_articles
-            
-        except Exception as e:
-            self.logger.error(f"Unexpected error in get_top_news: {str(e)}")
-            return self._get_sample_news()
+            # Combined score gives priority to recent, reputable articles with images
+            return (has_image, source_score, recency_score)
+        
+        # Sort articles by popularity indicators (descending order)
+        unique_articles.sort(key=sort_key, reverse=True)
+        
+        # Return only the requested number of articles
+        return unique_articles[:limit]
     
-    def _fetch_top_headlines_by_country(self, country, limit):
-        """Fetch top headlines for a specific country"""
+    def _get_top_headlines_by_country(self, country='us', page_size=20):
+        """Get top headlines by country."""
         try:
             params = {
-                "country": country,
-                "apiKey": self.api_key,
-                "pageSize": min(limit, 100)  # API limit is 100
+                'country': country,
+                'apiKey': self.api_key,
+                'pageSize': page_size
             }
             
-            self.logger.info(f"Fetching top headlines for country: {country}, limit: {limit}")
+            logger.info(f"Fetching top headlines for country: {country}")
+            response = requests.get(self.top_headlines_url, params=params)
             
-            response = requests.get(self.top_headlines_url, params=params, timeout=10)
-            self.logger.info(f"Top headlines response status: {response.status_code}")
-            
-            if response.status_code != 200:
-                self.logger.error(f"Error fetching top headlines: {response.status_code} - {response.text}")
+            if response.status_code == 200:
+                data = response.json()
+                articles = data.get('articles', [])
+                logger.info(f"Received {len(articles)} articles for country: {country}")
+                return articles
+            else:
+                logger.error(f"Error fetching top headlines for {country}. Status: {response.status_code}, Response: {response.text}")
                 return []
-            
-            data = response.json()
-            articles = data.get("articles", [])
-            self.logger.info(f"Received {len(articles)} top headline articles for {country}")
-            
-            return articles
         except Exception as e:
-            self.logger.error(f"Error in _fetch_top_headlines_by_country: {str(e)}")
+            logger.error(f"Exception fetching top headlines for {country}: {str(e)}")
             return []
     
-    def _fetch_news_from_sources(self, country, limit):
+    def _get_news_by_source(self, source, page_size=20, from_date=None, to_date=None):
+        """Get news by source."""
+        try:
+            params = {
+                'sources': source,
+                'apiKey': self.api_key,
+                'pageSize': page_size,
+                'sortBy': 'popularity'
+            }
+            
+            # Add date filtering if provided
+            if from_date:
+                params['from'] = from_date
+            if to_date:
+                params['to'] = to_date
+            
+            logger.info(f"Fetching news from source: {source}")
+            response = requests.get(self.everything_url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"Received {len(data.get('articles', []))} articles from source: {source}")
+                return data.get('articles', [])
+            else:
+                logger.error(f"Error fetching news from source {source}. Status: {response.status_code}, Response: {response.text}")
+                return []
+        except Exception as e:
+            logger.error(f"Exception fetching news from source {source}: {str(e)}")
+            return []
+    
+    def _get_news_by_keyword(self, keyword, page_size=20, from_date=None, to_date=None):
+        """Get news by keyword."""
+        try:
+            params = {
+                'q': keyword,
+                'apiKey': self.api_key,
+                'pageSize': page_size,
+                'sortBy': 'popularity',
+                'language': 'en'
+            }
+            
+            # Add date filtering if provided
+            if from_date:
+                params['from'] = from_date
+            if to_date:
+                params['to'] = to_date
+            
+            logger.info(f"Fetching news for keyword: {keyword}")
+            response = requests.get(self.everything_url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"Received {len(data.get('articles', []))} articles for keyword: {keyword}")
+                return data.get('articles', [])
+            else:
+                logger.error(f"Error fetching news for keyword {keyword}. Status: {response.status_code}, Response: {response.text}")
+                return []
+        except Exception as e:
+            logger.error(f"Exception fetching news for keyword {keyword}: {str(e)}")
+            return []
+    
+    def _filter_recent_articles(self, articles, days=14):
+        """Filter articles to get only those from the specified number of days"""
+        try:
+            cutoff_date = datetime.now() - timedelta(days=days)
+            filtered_articles = []
+            
+            for article in articles:
+                published_at = article.get("publishedAt")
+                if not published_at:
+                    continue
+                
+                try:
+                    article_date = datetime.strptime(published_at[:19], "%Y-%m-%dT%H:%M:%S")
+                    if article_date >= cutoff_date:
+                        filtered_articles.append(article)
+                except (ValueError, TypeError):
+                    # If we can't parse the date, still include the article
+                    filtered_articles.append(article)
+            
+            self.logger.info(f"Filtered to {len(filtered_articles)} articles within the last {days} days")
+            return filtered_articles
+        except Exception as e:
+            self.logger.error(f"Error in _filter_recent_articles: {str(e)}")
+            return articles  # Return original list on error
+    
+    def _sort_by_popularity(self, articles):
+        """Sort articles by popularity indicators"""
+        try:
+            # Define a scoring function for popularity 
+            def popularity_score(article):
+                score = 0
+                
+                # Articles with images are prioritized
+                if article.get("urlToImage"):
+                    score += 10
+                
+                # Articles with content are prioritized
+                if article.get("content"):
+                    score += 5
+                
+                # Articles with descriptions are prioritized
+                if article.get("description"):
+                    score += 3
+                
+                # Recent articles get higher priority (up to 10 points)
+                try:
+                    published_at = article.get("publishedAt", "")
+                    if published_at:
+                        pub_date = datetime.strptime(published_at[:19], "%Y-%m-%dT%H:%M:%S")
+                        days_old = (datetime.now() - pub_date).days
+                        recency_score = max(0, 10 - days_old)  # 0 to 10 points based on recency
+                        score += recency_score
+                except (ValueError, TypeError):
+                    pass
+                
+                # Premium sources get a boost
+                premium_sources = ["bbc", "cnn", "reuters", "the-new-york-times", 
+                                  "the-washington-post", "the-hindu", "the-times-of-india"]
+                source_name = article.get("source", {}).get("name", "").lower()
+                for premium in premium_sources:
+                    if premium in source_name:
+                        score += 5
+                        break
+                
+                return score
+            
+            # Sort articles by descending popularity score
+            sorted_articles = sorted(articles, key=popularity_score, reverse=True)
+            return sorted_articles
+        except Exception as e:
+            self.logger.error(f"Error in _sort_by_popularity: {str(e)}")
+            return articles  # Return original list on error
+    
+    def _fetch_news_from_sources(self, country, limit, date_from=None):
         """Fetch news from sources in a specific country"""
         try:
             # First get sources from the country
@@ -174,12 +363,17 @@ class NewsIntegration:
             params = {
                 "sources": source_ids,
                 "apiKey": self.api_key,
-                "pageSize": min(limit, 100)
+                "pageSize": min(limit, 100),
+                "sortBy": "popularity"  # Sort by popularity
             }
+            
+            # Add date filter if provided
+            if date_from:
+                params["from"] = date_from
             
             self.logger.info(f"Fetching news from sources: {source_ids}")
             
-            response = requests.get(self.top_headlines_url, params=params, timeout=10)
+            response = requests.get(self.everything_url, params=params, timeout=10)
             if response.status_code != 200:
                 self.logger.error(f"Error fetching news from sources: {response.status_code} - {response.text}")
                 return []
@@ -224,7 +418,7 @@ class NewsIntegration:
             self.logger.error(f"Error in _fetch_news_from_sources: {str(e)}")
             return []
     
-    def _fetch_news_by_keywords(self, country, limit):
+    def _fetch_news_by_keywords(self, country, limit, date_from=None):
         """Fetch news by keywords related to the country"""
         try:
             # Define keywords based on country
@@ -240,8 +434,13 @@ class NewsIntegration:
                 "q": query,
                 "apiKey": self.api_key,
                 "pageSize": min(limit, 100),
-                "language": "en"
+                "language": "en",
+                "sortBy": "popularity"  # Sort by popularity
             }
+            
+            # Add date filter if provided
+            if date_from:
+                params["from"] = date_from
             
             self.logger.info(f"Fetching news by keywords: {query}")
             
@@ -258,61 +457,66 @@ class NewsIntegration:
         except Exception as e:
             self.logger.error(f"Error in _fetch_news_by_keywords: {str(e)}")
             return []
-    
+            
     def _get_sample_news(self):
-        """Return sample news data when API fails"""
-        return [
+        """Return sample news data when the API fails"""
+        self.logger.warning("Returning sample news data")
+        
+        # Define some realistic sample news data
+        sample_data = [
             {
                 "id": 1,
-                "title": "Sample News Article 1",
-                "description": "This is a sample news article description.",
-                "content": "This is sample content for news article 1.",
-                "url": "https://example.com/news/1",
-                "source": "Sample News",
-                "publishedAt": "2023-05-01T12:00:00Z",
-                "imageUrl": "https://via.placeholder.com/450x200"
+                "title": "Tech Innovation Drives Economic Growth in 2024",
+                "description": "Recent advances in AI and clean technology are creating new job opportunities across various sectors.",
+                "content": "The rapid pace of technological innovation is reshaping global economies, with artificial intelligence and sustainable energy solutions leading the way. According to recent reports, these sectors are expected to generate millions of new jobs in the coming years.",
+                "url": "https://example.com/tech-news-1",
+                "source": "Tech Today",
+                "publishedAt": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "imageUrl": "https://via.placeholder.com/300x200?text=Tech+News"
             },
             {
                 "id": 2,
-                "title": "Sample News Article 2",
-                "description": "This is another sample news article description.",
-                "content": "This is sample content for news article 2.",
-                "url": "https://example.com/news/2",
-                "source": "Sample News",
-                "publishedAt": "2023-05-01T10:30:00Z",
-                "imageUrl": "https://via.placeholder.com/450x200"
+                "title": "Global Markets Respond to Policy Changes",
+                "description": "Financial markets show resilience as central banks adjust interest rates to manage inflation.",
+                "content": "Investors responded positively to recent monetary policy adjustments, with major indices showing growth despite ongoing economic challenges. Analysts suggest this indicates confidence in the long-term economic outlook.",
+                "url": "https://example.com/finance-news-1",
+                "source": "Financial Times",
+                "publishedAt": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "imageUrl": "https://via.placeholder.com/300x200?text=Finance+News"
             },
             {
                 "id": 3,
-                "title": "Sample Technology News",
-                "description": "This is a sample technology news article.",
-                "content": "This is sample content about technology advancements.",
-                "url": "https://example.com/news/3",
-                "source": "Tech News",
-                "publishedAt": "2023-05-02T09:15:00Z", 
-                "imageUrl": "https://via.placeholder.com/450x200"
+                "title": "Breakthrough in Renewable Energy Storage",
+                "description": "Scientists develop new battery technology that could accelerate the adoption of renewable energy.",
+                "content": "A team of researchers has announced a significant advancement in energy storage capabilities, potentially solving one of the biggest challenges in renewable energy adoption. The new technology offers longer lifespan and higher efficiency than current solutions.",
+                "url": "https://example.com/science-news-1",
+                "source": "Science Daily",
+                "publishedAt": (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "imageUrl": "https://via.placeholder.com/300x200?text=Science+News"
             },
             {
                 "id": 4,
-                "title": "Sample Business Update",
-                "description": "This is a sample business news article.",
-                "content": "This is sample content about business trends.",
-                "url": "https://example.com/news/4",
-                "source": "Business Daily",
-                "publishedAt": "2023-05-03T14:30:00Z",
-                "imageUrl": "https://via.placeholder.com/450x200"
+                "title": "Consumer Trends Shift Toward Sustainable Products",
+                "description": "Market research indicates growing consumer preference for environmentally friendly options.",
+                "content": "Recent studies show that consumers are increasingly making purchasing decisions based on sustainability factors. This trend is particularly pronounced among younger demographics, driving companies to adapt their product offerings and supply chains.",
+                "url": "https://example.com/business-news-1",
+                "source": "Business Insider",
+                "publishedAt": (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "imageUrl": "https://via.placeholder.com/300x200?text=Business+News"
             },
             {
                 "id": 5,
-                "title": "Sample Health News",
-                "description": "This is a sample health news article.",
-                "content": "This is sample content about health discoveries.",
-                "url": "https://example.com/news/5",
-                "source": "Health Times",
-                "publishedAt": "2023-05-04T11:45:00Z",
-                "imageUrl": "https://via.placeholder.com/450x200"
+                "title": "Healthcare Innovations Address Global Challenges",
+                "description": "New medical technologies provide solutions for aging populations and underserved communities.",
+                "content": "Healthcare providers are implementing cutting-edge technologies to extend care to previously underserved regions and address the unique needs of aging populations. These innovations range from telemedicine platforms to advanced diagnostic tools that can be deployed in resource-limited settings.",
+                "url": "https://example.com/health-news-1",
+                "source": "Health Monthly",
+                "publishedAt": (datetime.now() - timedelta(days=4)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "imageUrl": "https://via.placeholder.com/300x200?text=Health+News"
             }
         ]
+        
+        return sample_data
     
     def filter_news_for_brand(self, news_articles, brand_keywords):
         """
