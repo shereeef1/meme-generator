@@ -104,4 +104,27 @@ class MemeGenerator:
                 "success": False,
                 "error": f"Unexpected error: {str(e)}",
                 "message": "An unexpected error occurred while generating the meme."
-            } 
+            }
+
+    def generate_memes(self, text, brand_data=None):
+        """
+        Generate multiple memes using the Supermeme.ai API
+        
+        Args:
+            text (str): Text to include in the meme
+            brand_data (dict, optional): Additional brand context
+            
+        Returns:
+            list: List of meme URLs
+        """
+        try:
+            # Generate a single meme first
+            result = self.generate_meme(text)
+            
+            if not result["success"]:
+                raise Exception(result["message"])
+                
+            return result["meme_urls"]
+            
+        except Exception as e:
+            raise Exception(f"Failed to generate memes: {str(e)}") 
