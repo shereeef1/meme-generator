@@ -4,13 +4,13 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 const fetchWithTimeout = async (url, options, timeout = 60000) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
-  
+
   try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal
     });
-    
+
     clearTimeout(id);
     return response;
   } catch (error) {
@@ -22,10 +22,10 @@ const fetchWithTimeout = async (url, options, timeout = 60000) => {
 export const scrapeBrandData = async (url, category, country) => {
   try {
     console.log(`API - Scraping brand data from ${url} with timeout protection`);
-    
+
     // Use the fetchWithTimeout helper with a 90-second timeout for scraping
     const response = await fetchWithTimeout(
-      `${API_BASE_URL}/scrape-brand`, 
+      `${API_BASE_URL}/scrape-brand`,
       {
         method: 'POST',
         headers: {
@@ -62,7 +62,7 @@ export const scrapeBrandData = async (url, category, country) => {
         message: 'The scraping operation took too long. Please try again with a smaller website or upload a file instead.'
       };
     }
-    
+
     console.error('API - Error scraping brand data:', error);
     return {
       success: false,
@@ -74,20 +74,21 @@ export const scrapeBrandData = async (url, category, country) => {
 
 export const generatePrompts = async (brandData) => {
   try {
-    console.log('API - Raw text being sent to server:', 
-      brandData.raw_text ? 
-      `${brandData.raw_text.substring(0, 100)}... (${brandData.raw_text.length} chars)` : 
-      'No raw_text');
-    
+    console.log('API - Raw text being sent to server:',
+      brandData.raw_text ?
+        `${brandData.raw_text.substring(0, 100)}... (${brandData.raw_text.length} chars)` :
+        'No raw_text');
+
     const requestData = {
       raw_text: brandData.raw_text,
       brand_name: brandData.brand_name,
       category: brandData.category,
-      country: brandData.country
+      country: brandData.country,
+      prompt_count: brandData.prompt_count || 10 // Default to 10 if not specified
     };
-    
+
     console.log('API - Full request data:', requestData);
-    
+
     const response = await fetch(`${API_BASE_URL}/generate-prompts`, {
       method: 'POST',
       headers: {
@@ -114,7 +115,7 @@ export const generateMeme = async (prompt, brandData) => {
   try {
     console.log('API - generateMeme called with prompt length:', prompt?.length);
     console.log('API - generateMeme first 100 chars of prompt:', prompt?.substring(0, 100));
-    
+
     if (!prompt || !prompt.trim()) {
       console.error('API - generateMeme called with empty prompt');
       return {
@@ -122,15 +123,15 @@ export const generateMeme = async (prompt, brandData) => {
         message: 'Prompt cannot be empty'
       };
     }
-    
+
     const payload = {
       prompt,
       brand_name: brandData?.brand_name || '',
       category: brandData?.category || ''
     };
-    
+
     console.log('API - Sending meme generation request with payload:', payload);
-    
+
     const response = await fetch(`${API_BASE_URL}/generate-meme`, {
       method: 'POST',
       headers: {
@@ -152,7 +153,7 @@ export const generateMeme = async (prompt, brandData) => {
 
     const result = await response.json();
     console.log('API - Meme generation successful, received:', result);
-    
+
     // Validate that we got proper meme URLs
     if (result.success && result.meme_urls && Array.isArray(result.meme_urls)) {
       console.log(`API - Validating ${result.meme_urls.length} meme URLs received`);
@@ -160,13 +161,13 @@ export const generateMeme = async (prompt, brandData) => {
         console.warn('API - Empty meme URLs array returned');
       } else {
         // Log the first URL (truncated) for debugging
-        console.log('API - First meme URL example:', 
+        console.log('API - First meme URL example:',
           result.meme_urls[0].substring(0, 50) + '...');
       }
     } else if (result.success) {
       console.warn('API - Success response missing meme_urls array');
     }
-    
+
     return result;
   } catch (error) {
     console.error('API - Error generating meme:', error);
@@ -190,11 +191,11 @@ export const uploadBrandFile = async (file, category, country) => {
     });
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(data.message || 'Failed to upload file');
     }
-    
+
     return data;
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -209,18 +210,18 @@ export const uploadBrandFile = async (file, category, country) => {
 export const fetchNews = async (limit = 20, days = 14, country = 'in', category = null) => {
   try {
     console.log(`API - Fetching ${limit} news articles from ${country} for the last ${days} days${category ? `, category: ${category}` : ''}`);
-    
+
     // Build the URL with query parameters
     let url = `${API_BASE_URL}/news?limit=${limit}&days=${days}&country=${country}`;
-    
+
     // Add category parameter if specified
     if (category) {
       url += `&category=${category}`;
     }
-    
+
     // Use fetchWithTimeout for a 30-second timeout
     const response = await fetchWithTimeout(
-      url, 
+      url,
       {
         method: 'GET',
         headers: {
@@ -237,11 +238,11 @@ export const fetchNews = async (limit = 20, days = 14, country = 'in', category 
     }
 
     const data = await response.json();
-    
+
     if (!data.success) {
       throw new Error(data.message || 'Failed to fetch news');
     }
-    
+
     console.log(`API - Successfully fetched ${data.news.length} news articles`);
     return data;
   } catch (error) {
@@ -254,7 +255,7 @@ export const fetchNews = async (limit = 20, days = 14, country = 'in', category 
         message: 'The request timed out. Please try again later.'
       };
     }
-    
+
     console.error('API - Error fetching news:', error);
     return {
       success: false,
@@ -267,11 +268,11 @@ export const fetchNews = async (limit = 20, days = 14, country = 'in', category 
 export const getDocuments = async (page = 1, perPage = 10) => {
   try {
     const response = await fetch(`${API_BASE_URL}/documents?page=${page}&per_page=${perPage}`);
-    
+
     if (!response.ok) {
       throw new Error('Network response was not ok');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error fetching documents:', error);
@@ -282,11 +283,11 @@ export const getDocuments = async (page = 1, perPage = 10) => {
 export const getDocument = async (docId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/documents/${docId}`);
-    
+
     if (!response.ok) {
       throw new Error('Network response was not ok');
     }
-    
+
     return await response.blob();
   } catch (error) {
     console.error('Error fetching document:', error);
@@ -303,11 +304,11 @@ export const updateDocument = async (docId, content) => {
       },
       body: JSON.stringify({ content }),
     });
-    
+
     if (!response.ok) {
       throw new Error('Network response was not ok');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error updating document:', error);
@@ -320,11 +321,11 @@ export const deleteDocument = async (docId) => {
     const response = await fetch(`${API_BASE_URL}/documents/${docId}`, {
       method: 'DELETE',
     });
-    
+
     if (!response.ok) {
       throw new Error('Network response was not ok');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error deleting document:', error);
@@ -335,14 +336,14 @@ export const deleteDocument = async (docId) => {
 export const enhancedBrandResearch = async (brandName, category = null, country = null, options = {}) => {
   try {
     console.log(`API - Starting enhanced research for ${brandName}`);
-    
+
     // Prepare options with defaults
     const includeCompetitors = options.includeCompetitors !== false;
     const includeTrends = options.includeTrends !== false;
-    
+
     // Use the fetchWithTimeout helper with a 120-second timeout for enhanced research
     const response = await fetchWithTimeout(
-      `${API_BASE_URL}/enhanced-brand-research`, 
+      `${API_BASE_URL}/enhanced-brand-research`,
       {
         method: 'POST',
         headers: {
@@ -370,16 +371,16 @@ export const enhancedBrandResearch = async (brandName, category = null, country 
 
     const data = await response.json();
     console.log(`API - Enhanced research successful for: ${data.brand_name || brandName}`);
-    
+
     // Log some details about what was found
     if (data.competitors && data.competitors.length > 0) {
       console.log(`API - Found ${data.competitors.length} competitors`);
     }
-    
+
     if (data.industry_trends && data.industry_trends.length > 0) {
       console.log(`API - Found ${data.industry_trends.length} industry trends`);
     }
-    
+
     return data;
   } catch (error) {
     // Check for timeout (AbortError)
@@ -391,7 +392,7 @@ export const enhancedBrandResearch = async (brandName, category = null, country 
         message: 'The enhanced research operation took too long. Please try with a more specific brand name.'
       };
     }
-    
+
     console.error('API - Error during enhanced brand research:', error);
     return {
       success: false,
@@ -410,14 +411,14 @@ export const enhancedBrandResearch = async (brandName, category = null, country 
  */
 export async function llmDeepSearchBrand(brandName, category = null, country = null) {
   console.log(`API - Starting LLM DeepSearch for ${brandName}`);
-  
+
   try {
     const requestData = {
       brand_name: brandName,
       category: category,
       country: country
     };
-    
+
     // Use the fetchWithTimeout helper with a 120-second timeout for LLM DeepSearch
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/llm-deepsearch-brand`,
@@ -430,18 +431,18 @@ export async function llmDeepSearchBrand(brandName, category = null, country = n
       },
       120000 // 120 seconds timeout for LLM operations
     );
-    
+
     // Handle non-200 responses
     if (!response.ok) {
       const errorData = await response.json();
       console.error('API - LLM DeepSearch failed:', response.status, errorData);
       throw new Error(errorData.message || 'Failed to perform LLM DeepSearch research');
     }
-    
+
     const data = await response.json();
     console.log(`API - LLM DeepSearch successful for: ${data.brand_name || brandName}`);
     return data;
-    
+
   } catch (error) {
     // Handle timeout errors specifically
     if (error.name === 'AbortError') {
@@ -450,7 +451,7 @@ export async function llmDeepSearchBrand(brandName, category = null, country = n
         'The LLM DeepSearch operation took too long. Please try with a more specific brand name.'
       );
     }
-    
+
     // Rethrow other errors
     console.error('API - Error during LLM DeepSearch:', error);
     throw error;

@@ -1,9 +1,19 @@
 .topical-news-container {
-  padding: 20px 0;
+  padding: 1rem 0;
+}
+
+.topical-news-container h2 {
+  background: linear-gradient(90deg, var(--primary), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+  font-size: 2.2rem;
+  margin-bottom: 0.5rem;
 }
 
 .news-list {
-  max-height: 70vh;
+  max-height: 600px;
   overflow-y: auto;
   padding-right: 10px;
 }
@@ -11,17 +21,26 @@
 .news-item {
   cursor: pointer;
   transition: all 0.2s ease;
-  border-left: 3px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  border: none;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
 
 .news-item:hover {
   transform: translateX(5px);
-  border-left: 3px solid #ccc;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
 .news-item.selected {
-  border-left: 3px solid #007bff;
-  background-color: rgba(0, 123, 255, 0.05);
+  border-left: 4px solid var(--primary);
+  background-color: rgba(255, 107, 107, 0.05);
+}
+
+.news-item .card-title {
+  font-family: 'Bangers', cursive;
+  letter-spacing: 0.5px;
+  color: var(--dark);
 }
 
 .card-title {
@@ -54,6 +73,16 @@
 .news-actions {
   position: sticky;
   top: 20px;
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  background: linear-gradient(135deg, #fff, #f8f9fa);
+}
+
+.news-actions .card-title {
+  color: var(--accent2);
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
 }
 
 .btn-group-sm > .btn,
@@ -63,8 +92,61 @@
   border-radius: 0.2rem;
 }
 
-.spinner-border-sm {
-  width: 1rem;
-  height: 1rem;
-  border-width: 0.2em;
+.spinner-border {
+  color: var(--accent1);
+}
+
+/* Custom scrollbar */
+.news-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.news-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.news-list::-webkit-scrollbar-thumb {
+  background: var(--secondary);
+  border-radius: 10px;
+}
+
+.news-list::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+@media (max-width: 768px) {
+  .news-list {
+    max-height: 400px;
+  }
+  
+  .news-actions {
+    position: static;
+    margin-top: 1rem;
+  }
+}
+
+/* News link styling */
+.news-link {
+  color: #0d6efd;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.85rem;
+  transition: color 0.2s ease;
+}
+
+.news-link:hover {
+  color: #0a58ca;
+  text-decoration: underline;
+}
+
+.news-link i {
+  font-size: 1.2rem;
+  margin-right: 2px;
+}
+
+.news-url {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
 } 

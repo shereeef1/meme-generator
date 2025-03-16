@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateMeme } from '../api';
+// Import confetti
+import confetti from 'canvas-confetti';
 
 const MemeGenerator = ({ prompt = '', brandData = null }) => {
   const [text, setText] = useState(prompt || '');
@@ -25,6 +27,18 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
       // We remove the auto-submit behavior here
     }
   }, [prompt]);
+
+  // Add confetti celebration
+  const celebrateSuccess = () => {
+    // Celebrate with confetti!
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#FF6B6B', '#4ECDC4', '#FFD166', '#6A4C93']
+    });
+    console.log('🎉 Meme generated successfully! 🎉');
+  };
 
   // Add a function to preload and cache images
   const preloadImages = async (urls) => {
@@ -101,6 +115,9 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
 
           // Preload and cache the images
           await preloadImages(response.meme_urls);
+          
+          // Celebrate with confetti!
+          celebrateSuccess();
         } else if (response.meme_url) {
           // If we only have a single meme_url, create an array with it
           const memeArray = [response.meme_url];
@@ -112,6 +129,9 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
 
           // Preload and cache the image
           await preloadImages(memeArray);
+          
+          // Celebrate with confetti!
+          celebrateSuccess();
         } else {
           console.error('MemeGenerator - No meme URLs found in response');
           setError('No memes were generated. Please try again.');
@@ -199,25 +219,25 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
       <div className="col-lg-8 mb-4">
         <div className="card">
           <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h2 className="h5 mb-0">Meme Generator</h2>
+            <h2 className="h5 mb-0">Meme-ify This Bad Boy</h2>
             <button
               className="btn btn-sm btn-light"
               onClick={() => setShowAdvanced(!showAdvanced)}
             >
-              {showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
+              {showAdvanced ? 'Hide Nerdy Stuff' : 'Show Nerdy Stuff'}
             </button>
           </div>
           <div className="card-body">
             {error && (
               <div className="alert alert-danger" role="alert">
-                {error}
+                Oops! We broke the internet. {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label htmlFor="memeText" className="form-label">
-                  {prompt ? 'Selected Prompt:' : 'Enter Text for Your Meme'}
+                  {prompt ? 'Your Brilliant Idea:' : 'Type Something Hilarious Here:'}
                 </label>
                 <div className="input-group">
                   <textarea
@@ -225,7 +245,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
                     className="form-control"
                     value={text || ''}
                     onChange={(e) => setText(e.target.value)}
-                    placeholder="Enter your meme text here..."
+                    placeholder="Enter your meme text here... make it good or the AI will judge you"
                     maxLength={300}
                     rows={3}
                     disabled={loading}
@@ -238,7 +258,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
                       onClick={() => setText('')}
                       disabled={!text || loading}
                     >
-                      Clear
+                      Start Over
                     </button>
                   )}
                 </div>
@@ -253,23 +273,23 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
               {showAdvanced && (
                 <div className="card mb-3">
                   <div className="card-body">
-                    <h6 className="mb-3">Advanced Options</h6>
+                    <h6 className="mb-3">Advanced Options (for Meme Experts Only)</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">Style</label>
                         <select className="form-select" disabled={loading}>
-                          <option value="modern">Modern</option>
-                          <option value="classic">Classic</option>
-                          <option value="minimal">Minimal</option>
+                          <option value="modern">Super Modern</option>
+                          <option value="classic">Old School Cool</option>
+                          <option value="minimal">No Frills</option>
                         </select>
                       </div>
                       <div className="col-md-6">
                         <label className="form-label">Format</label>
                         <select className="form-select" disabled={loading}>
-                          <option value="auto">Auto</option>
-                          <option value="square">Square</option>
-                          <option value="portrait">Portrait</option>
-                          <option value="landscape">Landscape</option>
+                          <option value="auto">AI Decides</option>
+                          <option value="square">Square (For Boomers)</option>
+                          <option value="portrait">Portrait (For TikTokers)</option>
+                          <option value="landscape">Landscape (For Fancy People)</option>
                         </select>
                       </div>
                     </div>
@@ -286,10 +306,10 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
                   {loading ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Generating Your Meme...
+                      Summoning Meme Gods...
                     </>
                   ) : (
-                    'Generate Meme'
+                    'Generate Viral Content'
                   )}
                 </button>
               </div>
@@ -300,13 +320,13 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
         {selectedMeme && (
           <div className="card mt-4">
             <div className="card-header bg-success text-white d-flex justify-content-between align-items-center">
-              <h2 className="h5 mb-0">Selected Meme</h2>
+              <h2 className="h5 mb-0">Your Masterpiece</h2>
               <div className="btn-group">
                 <button
                   className="btn btn-sm btn-light"
                   onClick={() => handleDownload(selectedMeme)}
                 >
-                  Download
+                  Save This Gem
                 </button>
                 <a
                   href={cachedImages[selectedMeme] || selectedMeme}
@@ -314,7 +334,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Open Full Size
+                  Full Size Glory
                 </a>
               </div>
             </div>
@@ -348,7 +368,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
         {memes && memes.length > 0 && (
           <div className="card">
             <div className="card-header bg-info text-white">
-              <h2 className="h5 mb-0">More Options</h2>
+              <h2 className="h5 mb-0">Alternative Universes</h2>
             </div>
             <div className="card-body p-2">
               <div className="row g-2">

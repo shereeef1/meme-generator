@@ -3,3 +3,8 @@ Author: YourGitHubUsername <your-email@example.com>
 Date:   Sun Mar 16 03:35:14 2025 +0530
 
     Fix image loading and automatic meme generation issues. Improve MemeGenerator component and backend integration. Update styling for better meme display.
+[33mf358c88[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m Fix CORS issue by updating backend to use MemeGenerator API and removing frontend fallbacks
+[33m8cb0930[m Add LLM DeepSearch Feature: Implement deep AI research for gathering comprehensive brand information. Includes new backend module, API endpoint, and frontend UI with confirmation flow.
+[33m19bf14b[m Update news fetching to only show trending news from the last 14 days
+[33m6244d0b[m Update TopicalNews component to fetch real-time news instead of static sample data
+[33m0703045[m Fix website scraping connection issues with improved error handling and fallback mechanisms

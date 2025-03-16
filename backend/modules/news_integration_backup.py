@@ -236,13 +236,13 @@ class NewsIntegration:
                 raise Exception(f"Rate limit exceeded: {response.text}")
             else:
                 self.logger.error(f"Error fetching news from source {source}. Status: {response.status_code}, Response: {response.text}")
-                return []
+            return []
         except Exception as e:
             if "429" in str(e) or "rate limit" in str(e).lower():
                 # Re-raise rate limit exceptions
                 raise
             self.logger.error(f"Exception fetching news from source {source}: {str(e)}")
-            return []
+                return []
             
     def _get_news_by_keyword(self, keyword, page_size=20, from_date=None, to_date=None):
         """Get news by keyword."""
@@ -274,13 +274,13 @@ class NewsIntegration:
                 raise Exception(f"Rate limit exceeded: {response.text}")
             else:
                 self.logger.error(f"Error fetching news for keyword {keyword}. Status: {response.status_code}, Response: {response.text}")
-                return []
+            return []
         except Exception as e:
             if "429" in str(e) or "rate limit" in str(e).lower():
                 # Re-raise rate limit exceptions
                 raise
             self.logger.error(f"Exception fetching news for keyword {keyword}: {str(e)}")
-            return []
+                return []
     
     def _filter_recent_articles(self, articles, days=14):
         """Filter articles to include only those published within the specified number of days."""

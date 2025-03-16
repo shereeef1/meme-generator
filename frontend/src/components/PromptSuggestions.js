@@ -8,7 +8,9 @@ const PromptSuggestions = ({ brandData, onPromptSelect }) => {
   const [error, setError] = useState(null);
   const [prompts, setPrompts] = useState([]);
   const [selectedPrompt, setSelectedPrompt] = useState(null);
+  const [promptCount, setPromptCount] = useState(10); // Default to 10 prompts
 
+  // Remove automatic prompt generation on component mount or brandData change
   useEffect(() => {
     if (brandData) {
       console.log("PromptSuggestions - Initial brandData:", {
@@ -17,7 +19,7 @@ const PromptSuggestions = ({ brandData, onPromptSelect }) => {
         brand_name: brandData.brand_name,
         category: brandData.category
       });
-      generatePromptSuggestions();
+      // Removed: generatePromptSuggestions();
     }
   }, [brandData]);
 
@@ -44,29 +46,44 @@ const PromptSuggestions = ({ brandData, onPromptSelect }) => {
       }
       await new Promise(resolve => setTimeout(resolve, 1000)); // Visual feedback delay
       
-      setLoadingStep('Analyzing brand document for meme ideas...');
+      setLoadingStep(`Analyzing brand document for meme ideas... (generating ${promptCount} prompts)`);
+      console.log(`PromptSuggestions - Using content (${brandData.raw_text.length} chars) to generate ${promptCount} prompts`);
       
-      // As per the flow, just send the raw Word doc content directly to the API
-      const wordDocContent = brandData.raw_text;
-      console.log(`PromptSuggestions - Using original Word doc content (${wordDocContent.length} chars)`);
+      // Create a timeout promise that will reject after 110 seconds
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Prompt generation is taking longer than expected.")), 110000)
+      );
       
-      const response = await generatePrompts({
-        raw_text: wordDocContent,  // Send unmodified Word doc content
-        brand_name: brandData.brand_name || '',
-        category: brandData.category || '',
-        country: brandData.country || ''
-      });
+      // Race the API call against the timeout
+      const response = await Promise.race([
+        generatePrompts({
+          raw_text: brandData.raw_text,
+          brand_name: brandData.brand_name || '',
+          category: brandData.category || '',
+          country: brandData.country || '',
+          prompt_count: promptCount
+        }),
+        timeoutPromise
+      ]);
       
       if (response.success && response.prompts) {
         setLoadingStep('Formatting meme suggestions...');
         await new Promise(resolve => setTimeout(resolve, 500)); // Visual feedback delay
+        console.log(`PromptSuggestions - Received ${response.prompts.length} prompts`);
         setPrompts(response.prompts);
       } else {
-        setError(response.message || 'Failed to generate prompts');
+        // Display the specific error message from the API
+        const errorMessage = response.message || response.error || 'Failed to generate prompts';
+        console.error('Error from prompt generation API:', errorMessage);
+        setError(errorMessage);
       }
     } catch (err) {
       console.error('Error generating prompts:', err);
-      setError('An error occurred while generating prompts. Please try again.');
+      if (err.message === "Prompt generation is taking longer than expected.") {
+        setError('Prompt generation is taking too long. Please try again or select a smaller number of prompts.');
+      } else {
+        setError('An error occurred while generating prompts. Please check the console for details and try again.');
+      }
     } finally {
       setLoading(false);
       setLoadingStep('');
@@ -80,29 +97,72 @@ const PromptSuggestions = ({ brandData, onPromptSelect }) => {
     }
   };
 
+  const handlePromptCountChange = (e) => {
+    const count = parseInt(e.target.value);
+    setPromptCount(count);
+  };
+
   if (!brandData) {
     return null;
   }
 
   return (
     <div className="card mb-4">
-      <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h2 className="h5 mb-0">Select a Prompt</h2>
-        <button
-          className="btn btn-sm btn-light"
-          onClick={generatePromptSuggestions}
-          disabled={loading}
-        >
-          <i className="bi bi-arrow-clockwise me-2"></i>
-          Regenerate All
-        </button>
+      <div className="card-header bg-primary text-white">
+        <h2 className="h5 mb-0">Choose Your Weapon</h2>
       </div>
       <div className="card-body">
         {error && (
           <div className="alert alert-danger" role="alert">
-            {error}
+            {error} (Don't panic, it's just AI having a meltdown)
           </div>
         )}
+
+        {/* Add options section */}
+        <div className="card mb-3">
+          <div className="card-body">
+            <h5 className="card-title mb-3">The Meme Factory Control Panel</h5>
+            <div className="row g-3 align-items-end">
+              <div className="col-md-6">
+                <label htmlFor="promptCount" className="form-label">Number of Meme Ideas</label>
+                <select 
+                  id="promptCount" 
+                  className="form-select" 
+                  value={promptCount}
+                  onChange={handlePromptCountChange}
+                  disabled={loading}
+                >
+                  <option value="5">5 ideas (for beginners)</option>
+                  <option value="10">10 ideas (casual memer)</option>
+                  <option value="15">15 ideas (pro level)</option>
+                  <option value="20">20 ideas (meme enthusiast)</option>
+                  <option value="25">25 ideas (borderline obsessed)</option>
+                  <option value="30">30 ideas (absolute madlad)</option>
+                </select>
+                <div className="form-text">More ideas = more chances to go viral</div>
+              </div>
+              <div className="col-md-6">
+                <button
+                  className="btn btn-primary w-100"
+                  onClick={generatePromptSuggestions}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Brain.exe is processing...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-lightning-charge-fill me-2"></i>
+                      Unleash the Meme Ideas!
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {loading ? (
           <div className="text-center py-4">
@@ -122,13 +182,13 @@ const PromptSuggestions = ({ brandData, onPromptSelect }) => {
             </div>
             <p className="text-muted mt-3">
               {brandData.source_url ? 
-                `Processing content from: ${brandData.source_url}` : 
+                `Mining content from: ${brandData.source_url}` : 
                 brandData.file_name ? 
-                  `Processing file: ${brandData.file_name}` : 
-                  'Processing content...'}
+                  `Extracting meme juice from: ${brandData.file_name}` : 
+                  'Extracting meme potential...'}
             </p>
           </div>
-        ) : (
+        ) : prompts.length > 0 ? (
           <div className="prompt-list">
             {prompts.map((prompt, index) => (
               <div
@@ -143,21 +203,31 @@ const PromptSuggestions = ({ brandData, onPromptSelect }) => {
                       </div>
                     </div>
                     <div className="flex-grow-1">
-                      <h6 className="mb-2">Caption:</h6>
+                      <h6 className="mb-2">The Words:</h6>
                       <p className="mb-3">{prompt.caption}</p>
-                      <h6 className="mb-2">Suggestion:</h6>
+                      <h6 className="mb-2">The Picture:</h6>
                       <p className="mb-3 text-muted">{prompt.suggestion}</p>
                       <button
                         className="btn btn-sm btn-primary"
                         onClick={() => handlePromptSelect(prompt)}
                       >
-                        Select
+                        This One Sparks Joy
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="text-center py-5">
+            <div className="mb-4">
+              <i className="bi bi-lightning-charge display-1 text-muted"></i>
+            </div>
+            <h4 className="mb-3">No Meme Ideas Yet</h4>
+            <p className="text-muted">
+              Click the "Unleash the Meme Ideas!" button above to summon marketing genius from the depths of AI.
+            </p>
           </div>
         )}
       </div>

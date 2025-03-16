@@ -1,0 +1,5 @@
+[33mcommit 0703045d3d1e033e681bc42861932fe69f4cbc47[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m
+Author: YourGitHubUsername <your-email@example.com>
+Date:   Sun Mar 16 03:57:20 2025 +0530
+
+    Fix website scraping connection issues with improved error handling and fallback mechanisms

@@ -52,6 +52,7 @@ const BrandInput = ({ onBrandData }) => {
   });
   const [warning, setWarning] = useState(null);
   const [brandName, setBrandName] = useState('');
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
 
   const resetForm = () => {
     setUrl('');
@@ -139,7 +140,7 @@ const BrandInput = ({ onBrandData }) => {
     setLoading(true);
     setError(null);
     setStatus(null);
-    
+
     try {
       if (inputMethod === 'scrape' && !url) {
         setError('Please provide a URL to scrape');
@@ -158,23 +159,23 @@ const BrandInput = ({ onBrandData }) => {
         setLoading(false);
         return;
       }
-      
+
       if (inputMethod === 'scrape') {
         let formattedUrl = url;
-        
+
         // Add http:// prefix if missing
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
           formattedUrl = `https://${url}`;
         }
-        
+
         setStatus('Scraping website...');
-        
+
         try {
           const data = await scrapeBrandData(formattedUrl);
           setBrandData(data);
           setShowRawText(true);
           setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
-          
+
           // Don't call onBrandData here - wait for user confirmation
         } catch (err) {
           console.error('Error scraping website:', err);
@@ -185,14 +186,14 @@ const BrandInput = ({ onBrandData }) => {
         reader.onload = async (e) => {
           const text = e.target.result;
           console.log(`BrandInput - File read successful, content length: ${text ? text.length : 'none'}`);
-          
+
           if (!text || text.trim() === '') {
             console.error('BrandInput - Warning: Uploaded file has empty content!');
             setError('The uploaded file appears to be empty. Please try a different file.');
             setLoading(false);
             return;
           }
-          
+
           const data = {
             success: true,
             brand_name: uploadedFile.name.replace(/\.[^/.]+$/, ""),
@@ -204,7 +205,7 @@ const BrandInput = ({ onBrandData }) => {
           setBrandData(data);
           setShowRawText(true);
           setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
-          
+
           // Don't call onBrandData here - wait for user confirmation
         };
         reader.onerror = () => {
@@ -213,13 +214,13 @@ const BrandInput = ({ onBrandData }) => {
         reader.readAsText(uploadedFile);
       } else if (inputMethod === 'enhanced') {
         const brandName = enhancedOptions.brandNameInput;
-        
+
         console.log(`BrandInput - Starting enhanced research for: ${brandName}`);
         setError(null);
         setLoading(true);
-        
+
         setStatus('Performing enhanced brand research. This may take up to 1-2 minutes...');
-        
+
         try {
           const data = await enhancedBrandResearch(
             brandName,
@@ -230,24 +231,24 @@ const BrandInput = ({ onBrandData }) => {
               includeTrends: enhancedOptions.includeTrends
             }
           );
-          
+
           if (data.success) {
             console.log(`BrandInput - Enhanced research successful, raw_text length: ${data.raw_text ? data.raw_text.length : 'none'}`);
             setStatus('');
-            
+
             if (!data.raw_text || data.raw_text.trim() === '') {
               console.error('BrandInput - Warning: Enhanced research has empty raw_text!');
               data.raw_text = `Enhanced research for ${brandName}\nBrand: ${data.brand_name || brandName}`;
             }
-            
+
             // Check if there were partial failures and add a warning
             if (data.partial_failures && data.partial_failures.length > 0) {
               const failedSources = data.partial_failures.map(f => f.source).join(', ');
               console.warn(`BrandInput - Enhanced research had partial failures: ${failedSources}`);
-              
+
               // Add a warning to the UI
               setWarning(`Some data sources (${failedSources}) couldn't be accessed. Results may be incomplete.`);
-              
+
               // If we have a warning message from the backend, use that
               if (data.warning) {
                 setWarning(data.warning);
@@ -255,16 +256,16 @@ const BrandInput = ({ onBrandData }) => {
             } else {
               setWarning(null);
             }
-            
+
             setBrandData(data);
             setShowRawText(true);
             setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
-            
+
             // Don't call onBrandData here - wait for user confirmation
           } else {
             console.error('BrandInput - Enhanced research failed:', data.error || 'Unknown error');
             setStatus('');
-            
+
             // Provide more specific error messages based on the error type
             if (data.error && data.error.includes('rate limiting')) {
               setError('Search services are currently rate limited. Please try again in a few minutes or use a different method.');
@@ -285,17 +286,19 @@ const BrandInput = ({ onBrandData }) => {
           setLoading(false);
           return;
         }
-        
+
         setStatus('Performing deep LLM research on the brand...');
         console.log(`BrandInput - Starting LLM DeepSearch for: ${brandName}`);
-        
+
         try {
+          setLoading(true);
           const data = await llmDeepSearchBrand(brandName, category, country);
-          
+          setLoading(false);
+
           if (data.success) {
             // Log the data received
             console.log(`BrandInput - LLM DeepSearch successful, raw_text length: ${data.raw_text ? data.raw_text.length : 'none'}`);
-            
+
             // Check if the raw_text is empty and log a warning
             if (!data.raw_text || data.raw_text.trim().length === 0) {
               console.error('BrandInput - Warning: LLM DeepSearch has empty raw_text!');
@@ -304,25 +307,32 @@ const BrandInput = ({ onBrandData }) => {
                 data.raw_text += '\n\nLimited information available from LLM DeepSearch.';
               }
             }
-            
+
             setBrandData(data);
             setShowRawText(true);
             setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
-            
+
             // Don't call onBrandData here - wait for user confirmation
           } else {
             console.error('BrandInput - LLM DeepSearch failed:', data.error || 'Unknown error');
-            setError(data.message || 'Failed to get brand information. Please try a different brand name or try again later.');
+            setError(`DeepSeek API error: ${data.message || 'Failed to get brand information. Please try a different brand name or check if the DeepSeek API key is properly configured.'}`);
+            
+            // Show a more user-friendly error message
+            setIsErrorModalOpen(true);
           }
         } catch (err) {
+          setLoading(false);
           console.error('BrandInput - Error during LLM DeepSearch:', err);
-          setError(err.message || 'Failed to perform LLM DeepSearch. Please try again later.');
+          setError(`Network error: ${err.message || 'Failed to connect to the server. Please check your internet connection and try again.'}`);
+          
+          // Show a more user-friendly error message
+          setIsErrorModalOpen(true);
         }
       }
     } catch (err) {
       console.error('Error processing brand data:', err);
       setStatus('');
-      
+
       if (err.message && err.message.includes('network')) {
         setError('Network error when connecting to the server. Please check your internet connection or try uploading a file instead.');
       } else if (err.message && err.message.includes('timeout')) {
@@ -338,11 +348,11 @@ const BrandInput = ({ onBrandData }) => {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.type === 'text/plain' || file.type === 'application/msword' || 
-          file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      if (file.type === 'text/plain' || file.type === 'application/msword' ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         setUploadedFile(file);
         setError(null);
-        
+
         const reader = new FileReader();
         reader.onload = async (e) => {
           const text = e.target.result;
@@ -357,14 +367,14 @@ const BrandInput = ({ onBrandData }) => {
           setBrandData(data);
           setShowRawText(true);
           setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
-          
+
           // Don't call onBrandData here - wait for user confirmation
         };
         reader.onerror = () => {
           setError('Error reading the uploaded file');
           setUploadedFile(null);
         };
-        
+
         reader.readAsText(file);
       } else {
         setError('Please upload a .txt or .doc/.docx file');
@@ -380,10 +390,10 @@ const BrandInput = ({ onBrandData }) => {
     setIsTextConfirmed(true);
     // Call onBrandData here to pass the data to the next step
     if (onBrandData && typeof onBrandData === 'function' && brandData) {
-      console.log('BrandInput - Sending brand data after confirmation with raw_text:', 
-        brandData.raw_text ? 
-        `${brandData.raw_text.substring(0, 100)}... (${brandData.raw_text.length} chars)` : 
-        'No raw_text');
+      console.log('BrandInput - Sending brand data after confirmation with raw_text:',
+        brandData.raw_text ?
+          `${brandData.raw_text.substring(0, 100)}... (${brandData.raw_text.length} chars)` :
+          'No raw_text');
       onBrandData(brandData);
     }
   };
@@ -400,6 +410,39 @@ const BrandInput = ({ onBrandData }) => {
     document.body.removeChild(a);
   };
 
+  const handleLLMDeepSearch = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/llm-deepsearch-brand', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          brand_name: brandName,
+          category: category,
+          country: country
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to perform deep search');
+      }
+      
+      const data = await response.json();
+      setStatus("LLM Deep Search completed successfully");
+      
+    } catch (err) {
+      setError(err.message);
+      setIsErrorModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="card mb-4">
       <div className="card-header bg-primary text-white">
@@ -411,8 +454,8 @@ const BrandInput = ({ onBrandData }) => {
             {error}
             {error.includes('scrape') && (
               <div className="mt-2">
-                <button 
-                  className="btn btn-sm btn-outline-primary" 
+                <button
+                  className="btn btn-sm btn-outline-primary"
                   onClick={() => setInputMethod('upload')}
                 >
                   Switch to File Upload
@@ -421,7 +464,7 @@ const BrandInput = ({ onBrandData }) => {
             )}
           </div>
         )}
-        
+
         {status && !error && (
           <div className="alert alert-info" role="alert">
             <div className="d-flex align-items-center">
@@ -432,10 +475,10 @@ const BrandInput = ({ onBrandData }) => {
             </div>
           </div>
         )}
-        
+
         <ul className="nav nav-tabs mb-4">
           <li className="nav-item">
-            <button 
+            <button
               className={`nav-link ${!selectedDocument ? 'active' : ''}`}
               onClick={() => setSelectedDocument(null)}
             >
@@ -443,7 +486,7 @@ const BrandInput = ({ onBrandData }) => {
             </button>
           </li>
           <li className="nav-item">
-            <button 
+            <button
               className={`nav-link ${selectedDocument ? 'active' : ''}`}
               onClick={() => loadDocuments()}
             >
@@ -481,7 +524,7 @@ const BrandInput = ({ onBrandData }) => {
                   <i className="bi bi-file-earmark-text me-2"></i>
                   Upload File
                 </label>
-                
+
                 <input
                   type="radio"
                   className="btn-check"
@@ -494,7 +537,7 @@ const BrandInput = ({ onBrandData }) => {
                   <i className="bi bi-search me-2"></i>
                   Enhanced Research
                 </label>
-                
+
                 <input
                   type="radio"
                   className="btn-check"
@@ -505,8 +548,8 @@ const BrandInput = ({ onBrandData }) => {
                 />
                 <label className="btn btn-outline-primary" htmlFor="llmDeepsearchMethod">
                   <i className="bi bi-robot me-2"></i>
-                  LLM DeepSearch
-                </label>
+                  LLM DeepSearch 🔥🔥🔥 (BEST)
+                </label> 
               </div>
             </div>
 
@@ -563,7 +606,7 @@ const BrandInput = ({ onBrandData }) => {
                       required
                     />
                     <div className="form-text">
-                      {inputMethod === 'enhanced' ? 
+                      {inputMethod === 'enhanced' ?
                         "We'll research this brand from multiple online sources." :
                         "We'll use our AI to gather comprehensive information about this brand."}
                     </div>
@@ -650,7 +693,7 @@ const BrandInput = ({ onBrandData }) => {
                     </button>
                   ))}
                 </div>
-                
+
                 {totalPages > 1 && (
                   <div className="d-flex justify-content-center mt-3">
                     <nav>
@@ -678,7 +721,7 @@ const BrandInput = ({ onBrandData }) => {
                   </div>
                 )}
               </div>
-              
+
               <div className="col-md-8">
                 {selectedDocument && (
                   <div className="card">
@@ -755,7 +798,7 @@ const BrandInput = ({ onBrandData }) => {
                     {showRawText ? 'Hide Raw Text' : 'Show Raw Text'}
                   </button>
                 </div>
-                
+
                 {showRawText && (
                   <div className="mb-3">
                     <div className="bg-light p-3 rounded" style={{ maxHeight: '300px', overflow: 'auto' }}>
@@ -769,7 +812,7 @@ const BrandInput = ({ onBrandData }) => {
                     </button>
                   </div>
                 )}
-                
+
                 <div className="d-flex justify-content-end">
                   <button
                     className="btn btn-primary"
@@ -792,6 +835,24 @@ const BrandInput = ({ onBrandData }) => {
               </div>
               <div className="card-body">
                 <p>{warning}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Modal */}
+        {isErrorModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+              <h3 className="text-xl font-bold mb-4 text-red-600">Error</h3>
+              <p className="mb-6">{error}</p>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setIsErrorModalOpen(false)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

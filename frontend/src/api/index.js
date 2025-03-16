@@ -142,11 +142,38 @@ const scrapeBrandData = async (url, category, country) => {
 // Generate prompts API call
 const generatePrompts = async (brandData) => {
   try {
-    console.log('Sending generate prompts request with brand data');
-    const response = await api.post('/generate-prompts', brandData);
+    console.log('Sending generate prompts request with brand data:', {
+      brand_name: brandData.brand_name,
+      raw_text_length: brandData.raw_text ? brandData.raw_text.length : 0,
+      category: brandData.category,
+      country: brandData.country,
+      prompt_count: brandData.prompt_count
+    });
+    
+    // Increase timeout for this specific request
+    const response = await api.post('/generate-prompts', brandData, {
+      timeout: 120000 // 2 minutes timeout for prompt generation
+    });
+    
+    console.log('Generate prompts response status:', response.status);
+    if (response.data && !response.data.success) {
+      console.error('API returned error:', response.data.error || response.data.message);
+    }
+    
     return response.data;
   } catch (error) {
     console.error('Error generating prompts:', error);
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+      // Return the actual error from the server if available
+      return {
+        success: false,
+        error: error.response.data.error || error.message,
+        message: error.response.data.message || 'Failed to generate meme prompt suggestions. Please try again.'
+      };
+    }
+    
     return {
       success: false,
       error: error.message || 'An error occurred',

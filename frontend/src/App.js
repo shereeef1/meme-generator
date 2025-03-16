@@ -14,6 +14,12 @@ function App() {
   const [loadingPrompts, setLoadingPrompts] = useState(false);
   const [promptError, setPromptError] = useState(null);
 
+  // Add meme patterns for visual flair
+  const memePatterns = {
+    headerEmoji: "🤣",
+    footerEmoji: "👽",
+  };
+
   const handleBrandData = (data) => {
     console.log('App - Received brand data with raw_text:', 
       data.raw_text ? 
@@ -28,7 +34,8 @@ function App() {
       }
       
       setBrandData(data);
-      generateMemePrompts(data);
+      // Remove automatic prompt generation - this will now be triggered by a button click
+      // generateMemePrompts(data);
       setActiveTab('prompt-selection');
     } else {
       console.error('Invalid brand data received:', data);
@@ -96,8 +103,8 @@ function App() {
     <div className="app-container">
       <header className="app-header">
         <div className="container">
-          <h1 className="display-4 text-center mb-3">Brand Meme Generator</h1>
-          <p className="lead text-center">Create viral memes for your favorite brands with AI</p>
+          <h1 className="display-4 text-center mb-3">{memePatterns.headerEmoji} Meme-ify Your Brand or Die Trying {memePatterns.headerEmoji}</h1>
+          <p className="lead text-center">Making boring brands go viral since 5 minutes ago</p>
         </div>
       </header>
       
@@ -108,7 +115,7 @@ function App() {
               className={`nav-link ${activeTab === 'brand-input' ? 'active' : ''}`}
               onClick={() => setActiveTab('brand-input')}
             >
-              1. Brand Info
+              1. Brand Info (The Boring Part)
             </button>
           </li>
           <li className="nav-item">
@@ -117,7 +124,7 @@ function App() {
               onClick={() => setActiveTab('prompt-selection')}
               disabled={!brandData}
             >
-              2. Select Prompt
+              2. Select Prompt (Get Creative... or Else)
             </button>
           </li>
           <li className="nav-item">
@@ -126,7 +133,7 @@ function App() {
               onClick={() => setActiveTab('topical-news')}
               disabled={!brandData}
             >
-              3. Topical News
+              3. News (Things That Happened IRL)
             </button>
           </li>
           <li className="nav-item">
@@ -135,7 +142,7 @@ function App() {
               onClick={() => setActiveTab('generate-meme')}
               disabled={!selectedPrompt}
             >
-              4. Generate Meme
+              4. Meme Magic (The Good Stuff)
             </button>
           </li>
         </ul>
@@ -168,10 +175,10 @@ function App() {
         </div>
       </main>
       
-      <footer className="app-footer mt-auto py-3 bg-light">
+      <footer className="app-footer mt-auto py-3">
         <div className="container text-center">
-          <p className="text-muted mb-0">
-            &copy; {new Date().getFullYear()} Brand Meme Generator. All rights reserved.
+          <p className="text-light mb-0">
+            {memePatterns.footerEmoji} {new Date().getFullYear()} Meme Factory HQ - Making serious brands look ridiculous since now {memePatterns.footerEmoji}
           </p>
         </div>
       </footer>

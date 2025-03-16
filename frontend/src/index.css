@@ -1,11 +1,22 @@
+:root {
+  --primary: #FF6B6B;     /* Vibrant coral-red */
+  --secondary: #4ECDC4;   /* Turquoise */
+  --accent1: #FFD166;     /* Golden yellow */
+  --accent2: #6A4C93;     /* Purple */
+  --light: #F7FFF7;       /* Off-white */
+  --dark: #1A535C;        /* Dark teal */
+  --meme-gradient: linear-gradient(135deg, var(--primary), var(--accent2));
+}
+
+/* Apply to body */
 body {
+  background-color: var(--light);
+  color: var(--dark);
+  font-family: 'Comic Neue', 'Comic Sans MS', cursive;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f8f9fa;
 }
 
 code {
@@ -38,4 +49,266 @@ code {
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1rem;
   margin-top: 2rem;
+}
+
+/* Card redesign */
+.card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 6px 10px rgba(0,0,0,0.1);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+}
+
+/* Header redesign */
+.app-header {
+  background: var(--meme-gradient);
+  padding: 2rem 0;
+  color: white;
+  text-align: center;
+}
+
+/* Primary buttons */
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  font-weight: bold;
+  border-radius: 25px;
+  padding: 8px 20px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent2);
+  border-color: var(--accent2);
+  transform: scale(1.05);
+}
+
+.app-container {
+  position: relative;
+}
+
+.app-container::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23FFD166' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.05;
+  z-index: -1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Bangers', cursive;
+  letter-spacing: 1px;
+}
+
+.card-header h2, .card-header h5 {
+  margin-bottom: 0;
+  text-transform: uppercase;
+}
+
+.form-label {
+  font-weight: bold;
+  color: var(--accent2);
+}
+
+/* Card headers with meme energy */
+.card-header {
+  background: linear-gradient(45deg, var(--secondary), var(--accent1));
+  border-bottom: none;
+  padding: 1rem;
+}
+
+.card-header.bg-primary {
+  background: linear-gradient(45deg, var(--primary), var(--secondary)) !important;
+}
+
+.card-header.bg-success {
+  background: linear-gradient(45deg, #2ecc71, var(--secondary)) !important;
+}
+
+.card-header.bg-info {
+  background: linear-gradient(45deg, var(--accent2), var(--secondary)) !important;
+}
+
+/* Card body padding */
+.card-body {
+  padding: 1.5rem;
+}
+
+.form-control {
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+  padding: 10px 15px;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 0.25rem rgba(78, 205, 196, 0.25);
+}
+
+textarea.form-control {
+  min-height: 120px;
+  font-size: 1.1rem;
+}
+
+.nav-tabs {
+  border-bottom: 2px solid var(--accent1);
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  font-weight: bold;
+  color: var(--dark);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover:not(.active) {
+  background-color: rgba(255, 209, 102, 0.2);
+  border-color: transparent;
+}
+
+.nav-tabs .nav-link.active {
+  color: var(--primary);
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.nav-tabs .nav-link.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--primary);
+}
+
+/* Improved responsive layout */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .card {
+    margin-bottom: 1.5rem;
+  }
+  
+  .nav-tabs .nav-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Better spacing between sections */
+main.container {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+/* News item cards */
+.news-item.card {
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+}
+
+.news-item.card:hover {
+  border-left: 3px solid var(--accent2);
+  transform: translateX(5px);
+}
+
+.news-item.selected {
+  border-left: 5px solid var(--primary);
+  background-color: rgba(255, 107, 107, 0.05);
+}
+
+/* Fancy spinner */
+.spinner-border {
+  border-width: 0.25em;
+  border-right-color: transparent;
+  animation: spinner-border 0.75s linear infinite;
+}
+
+/* Pulsating effect for loading containers */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.loading-container {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Button click effect */
+.btn:active {
+  transform: scale(0.95);
+}
+
+/* Fading transition for tab content */
+.tab-content > div {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* App footer styling */
+.app-footer {
+  background: var(--meme-gradient);
+  color: white;
+}
+
+/* Alert styling */
+.alert-danger {
+  background-color: rgba(255, 107, 107, 0.2);
+  border-color: var(--primary);
+  color: var(--dark);
+}
+
+.alert-info {
+  background-color: rgba(78, 205, 196, 0.2);
+  border-color: var(--secondary);
+  color: var(--dark);
+}
+
+/* Prompt cards styling */
+.prompt-card {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.prompt-card.border-primary {
+  border-width: 2px;
+  border-color: var(--primary) !important;
+  background-color: rgba(255, 107, 107, 0.05);
+}
+
+.prompt-number {
+  background-color: var(--accent1);
+  color: var(--dark);
+}
+
+/* Meme generator specific styles */
+.meme-thumbnail {
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.meme-thumbnail:hover {
+  transform: scale(1.1);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 } 

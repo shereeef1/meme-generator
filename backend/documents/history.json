@@ -28,5 +28,95 @@
     "country": null,
     "created_at": "2025-03-16T03:51:48.124610",
     "file_size": 53224
+  },
+  {
+    "id": 4,
+    "filename": "gokwik_20250316_044421_75875283.docx",
+    "path": "C:\\Users\\admin\\Desktop\\SAAS\\backend\\documents\\gokwik_20250316_044421_75875283.docx",
+    "source_url": "Enhanced Research: gokwik_20250316_044421_75875283.docx",
+    "category": null,
+    "country": null,
+    "created_at": "2025-03-16T04:44:21.516411",
+    "file_size": 38129
+  },
+  {
+    "id": 5,
+    "filename": "gokwik_20250316_045557_962c492f.docx",
+    "path": "C:\\Users\\admin\\Desktop\\SAAS\\backend\\documents\\gokwik_20250316_045557_962c492f.docx",
+    "source_url": "Enhanced Research: gokwik_20250316_045557_962c492f.docx",
+    "category": null,
+    "country": null,
+    "created_at": "2025-03-16T04:55:57.295537",
+    "file_size": 39751
+  },
+  {
+    "id": 6,
+    "filename": "zoko_20250316_050148_96a1be29.docx",
+    "path": "C:\\Users\\admin\\Desktop\\SAAS\\backend\\documents\\zoko_20250316_050148_96a1be29.docx",
+    "source_url": "Enhanced Research: zoko_20250316_050148_96a1be29.docx",
+    "category": null,
+    "country": null,
+    "created_at": "2025-03-16T05:01:48.509580",
+    "file_size": 40243
+  },
+  {
+    "id": 7,
+    "filename": "zoko.io_20250316_050341_1a6c6596.docx",
+    "path": "C:\\Users\\admin\\Desktop\\SAAS\\backend\\documents\\zoko.io_20250316_050341_1a6c6596.docx",
+    "source_url": "Enhanced Research: zoko.io_20250316_050341_1a6c6596.docx",
+    "category": null,
+    "country": null,
+    "created_at": "2025-03-16T05:03:41.573054",
+    "file_size": 39261
+  },
+  {
+    "id": 8,
+    "filename": "gokwik_llm_20250316_064154_fcdc5504.docx",
+    "path": "C:\\Users\\admin\\Desktop\\SAAS\\backend\\documents\\gokwik_llm_20250316_064154_fcdc5504.docx",
+    "source_url": "Enhanced Research: gokwik_llm_20250316_064154_fcdc5504.docx",
+    "category": "",
+    "country": "",
+    "created_at": "2025-03-16T06:41:54.976579",
+    "file_size": 39424
+  },
+  {
+    "id": 9,
+    "filename": "gokwik_llm_20250316_064557_1d060e66.docx",
+    "path": "C:\\Users\\admin\\Desktop\\SAAS\\backend\\documents\\gokwik_llm_20250316_064557_1d060e66.docx",
+    "source_url": "Enhanced Research: gokwik_llm_20250316_064557_1d060e66.docx",
+    "category": "",
+    "country": "",
+    "created_at": "2025-03-16T06:45:57.392175",
+    "file_size": 39215
+  },
+  {
+    "id": 10,
+    "filename": "zoko.io_llm_20250316_064713_14abef51.docx",
+    "path": "C:\\Users\\admin\\Desktop\\SAAS\\backend\\documents\\zoko.io_llm_20250316_064713_14abef51.docx",
+    "source_url": "Enhanced Research: zoko.io_llm_20250316_064713_14abef51.docx",
+    "category": "",
+    "country": "",
+    "created_at": "2025-03-16T06:47:13.204632",
+    "file_size": 39302
+  },
+  {
+    "id": 11,
+    "filename": "gokwik_llm_20250316_065150_285347a4.docx",
+    "path": "C:\\Users\\admin\\Desktop\\SAAS\\backend\\documents\\gokwik_llm_20250316_065150_285347a4.docx",
+    "source_url": "Enhanced Research: gokwik_llm_20250316_065150_285347a4.docx",
+    "category": "",
+    "country": "",
+    "created_at": "2025-03-16T06:51:50.862421",
+    "file_size": 39524
+  },
+  {
+    "id": 12,
+    "filename": "tesla_llm_20250316_070212_9404e1be.docx",
+    "path": "C:\\Users\\admin\\Desktop\\SAAS\\backend\\documents\\tesla_llm_20250316_070212_9404e1be.docx",
+    "source_url": "Enhanced Research: tesla_llm_20250316_070212_9404e1be.docx",
+    "category": "",
+    "country": "",
+    "created_at": "2025-03-16T07:02:12.638201",
+    "file_size": 39511
   }
 ]
