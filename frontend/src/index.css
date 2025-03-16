@@ -1,10 +1,10 @@
 :root {
-  --primary: #FF6B6B;     /* Vibrant coral-red */
-  --secondary: #4ECDC4;   /* Turquoise */
-  --accent1: #FFD166;     /* Golden yellow */
-  --accent2: #6A4C93;     /* Purple */
-  --light: #F7FFF7;       /* Off-white */
-  --dark: #1A535C;        /* Dark teal */
+  --primary: #ff6b6b; /* Vibrant coral-red */
+  --secondary: #4ecdc4; /* Turquoise */
+  --accent1: #ffd166; /* Golden yellow */
+  --accent2: #6a4c93; /* Purple */
+  --light: #f7fff7; /* Off-white */
+  --dark: #1a535c; /* Dark teal */
   --meme-gradient: linear-gradient(135deg, var(--primary), var(--accent2));
 }
 
@@ -12,7 +12,7 @@
 body {
   background-color: var(--light);
   color: var(--dark);
-  font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+  font-family: "Comic Neue", "Comic Sans MS", cursive;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
@@ -20,7 +20,7 @@ body {
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
 
@@ -55,14 +55,14 @@ code {
 .card {
   border: none;
   border-radius: 12px;
-  box-shadow: 0 6px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
 }
 
 /* Header redesign */
@@ -139,12 +139,18 @@ code {
   z-index: -1;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Bangers', cursive;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Bangers", cursive;
   letter-spacing: 1px;
 }
 
-.card-header h2, .card-header h5 {
+.card-header h2,
+.card-header h5 {
   margin-bottom: 0;
   text-transform: uppercase;
 }
@@ -171,7 +177,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .card-header.bg-info {
-  background: linear-gradient(45deg, var(--accent2), var(--secondary)) !important;
+  background: linear-gradient(
+    45deg,
+    var(--accent2),
+    var(--secondary)
+  ) !important;
 }
 
 /* Card body padding */
@@ -236,11 +246,11 @@ textarea.form-control {
     padding-left: 1rem;
     padding-right: 1rem;
   }
-  
+
   .card {
     margin-bottom: 1.5rem;
   }
-  
+
   .nav-tabs .nav-link {
     padding: 0.5rem 0.75rem;
     font-size: 0.9rem;
@@ -278,9 +288,15 @@ main.container {
 
 /* Pulsating effect for loading containers */
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.6; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .loading-container {
@@ -298,8 +314,14 @@ main.container {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* App footer styling */
@@ -346,7 +368,7 @@ main.container {
 
 .meme-thumbnail:hover {
   transform: scale(1.1);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 /* Add styles for the Firebase status component to match theme */
@@ -379,4 +401,4 @@ main.container {
   color: var(--dark) !important;
   font-weight: bold;
   padding: 0.5em 0.75em;
-} 
+}
