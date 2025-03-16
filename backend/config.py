@@ -11,6 +11,10 @@ class Config:
     TEMPLATES_FOLDER = 'templates'
     DEBUG = os.environ.get('FLASK_ENV', 'development') == 'development'
     
+    # API Keys
+    SUPREME_MEME_API_KEY = os.environ.get('SUPREME_MEME_API_KEY')
+    NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
+    
     # API URLs
     OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
     DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions'
