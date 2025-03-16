@@ -2,7 +2,13 @@ import requests
 import os
 import json
 import base64
+import logging
+import random
 from config import Config
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class MemeGenerator:
     """Class to handle interactions with the Supermeme.ai API"""
@@ -11,6 +17,13 @@ class MemeGenerator:
         self.api_key = Config.SUPREME_MEME_API_KEY
         # Correct API endpoint from the documentation
         self.api_url = "https://app.supermeme.ai/api/v2/meme/image"
+        
+        # Check if API key is available
+        if not self.api_key:
+            logger.warning("Supermeme.ai API key is not configured. Using mock responses.")
+            self.mock_mode = True
+        else:
+            self.mock_mode = False
     
     def generate_meme(self, text, style=None, template=None):
         """
@@ -39,6 +52,10 @@ class MemeGenerator:
                 "message": "Please reduce text to 300 characters or less"
             }
         
+        # Use mock responses when in mock mode (no API key)
+        if self.mock_mode:
+            return self._generate_mock_response(text)
+            
         try:
             # Prepare the request payload (only text is required)
             payload = {
@@ -50,6 +67,9 @@ class MemeGenerator:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key}"
             }
+            
+            # Log attempt to call API
+            logger.info(f"Attempting to call Supermeme.ai API with text: {text[:30]}...")
             
             # Make the API request
             response = requests.post(
@@ -84,6 +104,7 @@ class MemeGenerator:
                 
         except requests.exceptions.RequestException as e:
             # Handle request exceptions (network errors, timeouts, etc.)
+            logger.error(f"API request failed: {str(e)}")
             return {
                 "success": False,
                 "error": f"API request failed: {str(e)}",
@@ -105,6 +126,31 @@ class MemeGenerator:
                 "error": f"Unexpected error: {str(e)}",
                 "message": "An unexpected error occurred while generating the meme."
             }
+
+    def _generate_mock_response(self, text):
+        """Generate a mock response when the API key is not available"""
+        # List of sample meme images (placeholder URLs)
+        sample_meme_urls = [
+            "https://placeholder-image.com/meme1.jpg",
+            "https://via.placeholder.com/800x600.png?text=Sample+Meme",
+            "https://placehold.co/600x400/png",
+            "https://picsum.photos/800/600"
+        ]
+        
+        # Randomize how many meme URLs to return (1-3)
+        num_memes = random.randint(1, 3)
+        selected_memes = random.sample(sample_meme_urls, min(num_memes, len(sample_meme_urls)))
+        
+        logger.info(f"Returning mock meme response with {len(selected_memes)} sample images")
+        
+        return {
+            "success": True,
+            "message": "Mock memes generated (API key not configured)",
+            "meme_urls": selected_memes,
+            "primary_meme_url": selected_memes[0] if selected_memes else None,
+            "meme_count": len(selected_memes),
+            "is_mock": True
+        }
 
     def generate_memes(self, text, brand_data=None):
         """
