@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -48,5 +49,16 @@ SUPREME_MEME_API_KEY = os.environ.get('SUPREME_MEME_API_KEY')
 NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
 
 # Firebase config
-FIREBASE_CREDENTIALS = os.environ.get('FIREBASE_CREDENTIALS_PATH')
+# Try to get Firebase credentials from JSON string first
+FIREBASE_CREDENTIALS_JSON = os.environ.get('FIREBASE_CREDENTIALS_JSON')
+if FIREBASE_CREDENTIALS_JSON:
+    try:
+        FIREBASE_CREDENTIALS = json.loads(FIREBASE_CREDENTIALS_JSON)
+    except json.JSONDecodeError:
+        print("Warning: FIREBASE_CREDENTIALS_JSON is not valid JSON")
+        FIREBASE_CREDENTIALS = None
+else:
+    # Fall back to file path
+    FIREBASE_CREDENTIALS = os.environ.get('FIREBASE_CREDENTIALS_PATH')
+
 FIREBASE_STORAGE_BUCKET = os.environ.get('FIREBASE_STORAGE_BUCKET') 
