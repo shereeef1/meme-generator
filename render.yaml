@@ -1,0 +1,51 @@
+services:
+  # Backend API Service
+  - type: web
+    name: meme-generator-api
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FIREBASE_CREDENTIALS_PATH
+        sync: false
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: FIREBASE_APP_ID
+        sync: false
+
+  # Frontend Static Site
+  - type: web
+    name: meme-generator-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          name: meme-generator-api
+          type: web
+          property: url
+      - key: REACT_APP_FIREBASE_API_KEY
+        sync: false
+      - key: REACT_APP_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: REACT_APP_FIREBASE_PROJECT_ID
+        sync: false
+      - key: REACT_APP_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: REACT_APP_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: REACT_APP_FIREBASE_APP_ID
+        sync: false

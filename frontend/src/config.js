@@ -4,17 +4,15 @@ const config = {
   development: {
     apiUrl: 'http://localhost:5000/api'
   },
-  // When deployed to GitHub Pages
+  // When deployed to Render
   production: {
-    // For GitHub Pages deployment, we need to handle the lack of a backend server
-    // Option 1: Use Firebase functions or another serverless backend
-    // apiUrl: 'https://your-firebase-function-url.com/api'
+    // Get the API URL from environment variables set by Render
+    apiUrl: process.env.REACT_APP_API_URL 
+      ? `${process.env.REACT_APP_API_URL}/api` 
+      : '/api', // Fallback for direct deployment
     
-    // Option 2: For demo purposes, we can use the same Firebase client-side functionality
-    // This approach won't support the backend API calls, but will allow basic Firebase features to work
-    apiUrl: window.location.origin + '/meme-generator/api',
-    useLocalStorage: true,
-    isMockMode: true
+    // No mock mode needed when we have a real backend
+    isMockMode: false
   }
 };
 

@@ -2,8 +2,6 @@
 
 A fun meme generator that helps businesses create viral marketing content based on their brand.
 
-Live demo: [https://shereeef1.github.io/meme-generator](https://shereeef1.github.io/meme-generator)
-
 ## Features
 
 - Brand information scraping and analysis
@@ -14,19 +12,25 @@ Live demo: [https://shereeef1.github.io/meme-generator](https://shereeef1.github
 
 ## Deployment Instructions
 
+### Render.com One-Click Deployment (Recommended)
+
+This app is configured for easy deployment on Render.com using the `render.yaml` file:
+
+1. Fork/clone this repository to your GitHub account
+2. Create a Render.com account and connect it to your GitHub
+3. Click "New Blueprint" in your Render dashboard
+4. Select the repository with this code
+5. Render will automatically detect the `render.yaml` and set up both:
+   - The Python Flask backend API
+   - The React frontend static site
+6. Add your environment variables (Firebase configuration)
+7. Click "Apply" to deploy both services at once
+
+The `render.yaml` file handles all the configuration for you! Both services will be deployed and linked automatically.
+
 ### GitHub Pages Deployment
 
-The app is configured to deploy automatically to GitHub Pages using GitHub Actions.
-
-When you push to the main/master branch, it will:
-
-1. Build the React app
-2. Deploy to GitHub Pages
-3. The site will be available at `https://shereeef1.github.io/meme-generator`
-
-### Manual Deployment
-
-If you want to deploy manually:
+For a static demo version (without backend functionality):
 
 ```bash
 # Clone the repo
@@ -37,8 +41,25 @@ cd meme-generator
 cd frontend
 npm install
 
-# Build and deploy
+# Update config.js to use isMockMode: true
+# Then build and deploy
 npm run deploy
+```
+
+### Manual Deployment
+
+If you want to deploy services individually:
+
+```bash
+# Backend deployment
+cd backend
+pip install -r requirements.txt
+python app.py
+
+# Frontend deployment
+cd frontend
+npm install
+npm run build
 ```
 
 ## Environment Setup
@@ -56,10 +77,16 @@ REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
 REACT_APP_FIREBASE_APP_ID=your_firebase_app_id
 ```
 
+2. Create a `.env` file in the `backend` directory with similar Firebase configuration.
+
 ## Local Development
 
 ```bash
-# Start the development server
+# Start the backend server
+cd backend
+python app.py
+
+# In a separate terminal, start the frontend
 cd frontend
 npm start
 ```
