@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { scrapeBrandData, getDocuments, deleteDocument, updateDocument } from '../api';
+import { scrapeBrandData, getDocuments, deleteDocument, updateDocument, enhancedBrandResearch, scrapeBrandWebsite, enhanced_research, searchDocuments, getDocument, llmDeepSearchBrand } from '../api';
 
 const CATEGORIES = [
   { value: '', label: 'Select a category (optional)' },
@@ -45,6 +45,13 @@ const BrandInput = ({ onBrandData }) => {
   const [editContent, setEditContent] = useState('');
   const [fileInputKey, setFileInputKey] = useState(Date.now());
   const [status, setStatus] = useState('');
+  const [enhancedOptions, setEnhancedOptions] = useState({
+    includeCompetitors: true,
+    includeTrends: true,
+    brandNameInput: ''
+  });
+  const [warning, setWarning] = useState(null);
+  const [brandName, setBrandName] = useState('');
 
   const resetForm = () => {
     setUrl('');
@@ -56,10 +63,15 @@ const BrandInput = ({ onBrandData }) => {
     setIsTextConfirmed(false);
     setShowRawText(false);
     setFileInputKey(Date.now());
+    setBrandName('');
   };
 
   useEffect(() => {
     resetForm();
+    // Clear the brand name input when changing methods
+    if (inputMethod === 'enhanced') {
+      setEnhancedOptions({ ...enhancedOptions, brandNameInput: '' });
+    }
   }, [inputMethod]);
 
   useEffect(() => {
@@ -124,62 +136,51 @@ const BrandInput = ({ onBrandData }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (isTextConfirmed) {
-      onBrandData(brandData);
-      return;
-    }
-    
-    if (!inputMethod || (inputMethod === 'scrape' && !url) || (inputMethod === 'upload' && !uploadedFile)) {
-      setError('Please provide a URL or upload a file');
-      return;
-    }
-    
     setLoading(true);
     setError(null);
-    setBrandData(null);
-    setShowRawText(false);
-    setIsTextConfirmed(false);
+    setStatus(null);
     
     try {
+      if (inputMethod === 'scrape' && !url) {
+        setError('Please provide a URL to scrape');
+        setLoading(false);
+        return;
+      } else if (inputMethod === 'upload' && !uploadedFile) {
+        setError('Please select a file to upload');
+        setLoading(false);
+        return;
+      } else if (inputMethod === 'enhanced' && !enhancedOptions.brandNameInput) {
+        setError('Please enter a brand name for enhanced research');
+        setLoading(false);
+        return;
+      } else if (inputMethod === 'llm_deepsearch' && !brandName) {
+        setError('Please enter a brand name for LLM DeepSearch');
+        setLoading(false);
+        return;
+      }
+      
       if (inputMethod === 'scrape') {
         let formattedUrl = url;
+        
+        // Add http:// prefix if missing
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
           formattedUrl = `https://${url}`;
         }
         
-        console.log(`BrandInput - Scraping data from: ${formattedUrl}`);
-        setError(null);
-        setLoading(true);
+        setStatus('Scraping website...');
         
-        // Show immediate feedback to the user that scraping has started
-        setStatus('Scraping website data. This may take up to 30-60 seconds for larger sites...');
-        
-        const data = await scrapeBrandData(formattedUrl, category || undefined, country || undefined);
-        
-        if (data.success) {
-          console.log(`BrandInput - Scraping successful, raw_text length: ${data.raw_text ? data.raw_text.length : 'none'}`);
-          setStatus('');
-          
-          if (!data.raw_text || data.raw_text.trim() === '') {
-            console.error('BrandInput - Warning: Scraped data has empty raw_text!');
-            // Provide a basic default
-            data.raw_text = `Data scraped from ${formattedUrl}\nBrand: ${data.brand_name || url}`;
-          }
-          
-          // If we're using fallback data, let the user know
-          if (data.scrape_quality === 'fallback' || data.scrape_quality === 'minimal') {
-            setStatus(`Limited data was retrieved from this website due to access restrictions. We've provided what we could find, but you may want to try uploading a file for better results.`);
-          }
-          
+        try {
+          const data = await scrapeBrandData(formattedUrl);
           setBrandData(data);
           setShowRawText(true);
-        } else {
-          console.error('BrandInput - Scraping failed:', data.error || 'Unknown error');
-          setStatus('');
-          setError(data.message || 'Failed to scrape brand data. Please try uploading a file instead.');
+          setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
+          
+          // Don't call onBrandData here - wait for user confirmation
+        } catch (err) {
+          console.error('Error scraping website:', err);
+          setError(`Error: ${err.message || 'Failed to connect to the server. Please try again.'}`);
         }
-      } else {
+      } else if (inputMethod === 'upload') {
         const reader = new FileReader();
         reader.onload = async (e) => {
           const text = e.target.result;
@@ -202,23 +203,132 @@ const BrandInput = ({ onBrandData }) => {
           };
           setBrandData(data);
           setShowRawText(true);
+          setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
+          
+          // Don't call onBrandData here - wait for user confirmation
         };
         reader.onerror = () => {
           setError('Error reading the uploaded file');
         };
         reader.readAsText(uploadedFile);
+      } else if (inputMethod === 'enhanced') {
+        const brandName = enhancedOptions.brandNameInput;
+        
+        console.log(`BrandInput - Starting enhanced research for: ${brandName}`);
+        setError(null);
+        setLoading(true);
+        
+        setStatus('Performing enhanced brand research. This may take up to 1-2 minutes...');
+        
+        try {
+          const data = await enhancedBrandResearch(
+            brandName,
+            category || undefined,
+            country || undefined,
+            {
+              includeCompetitors: enhancedOptions.includeCompetitors,
+              includeTrends: enhancedOptions.includeTrends
+            }
+          );
+          
+          if (data.success) {
+            console.log(`BrandInput - Enhanced research successful, raw_text length: ${data.raw_text ? data.raw_text.length : 'none'}`);
+            setStatus('');
+            
+            if (!data.raw_text || data.raw_text.trim() === '') {
+              console.error('BrandInput - Warning: Enhanced research has empty raw_text!');
+              data.raw_text = `Enhanced research for ${brandName}\nBrand: ${data.brand_name || brandName}`;
+            }
+            
+            // Check if there were partial failures and add a warning
+            if (data.partial_failures && data.partial_failures.length > 0) {
+              const failedSources = data.partial_failures.map(f => f.source).join(', ');
+              console.warn(`BrandInput - Enhanced research had partial failures: ${failedSources}`);
+              
+              // Add a warning to the UI
+              setWarning(`Some data sources (${failedSources}) couldn't be accessed. Results may be incomplete.`);
+              
+              // If we have a warning message from the backend, use that
+              if (data.warning) {
+                setWarning(data.warning);
+              }
+            } else {
+              setWarning(null);
+            }
+            
+            setBrandData(data);
+            setShowRawText(true);
+            setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
+            
+            // Don't call onBrandData here - wait for user confirmation
+          } else {
+            console.error('BrandInput - Enhanced research failed:', data.error || 'Unknown error');
+            setStatus('');
+            
+            // Provide more specific error messages based on the error type
+            if (data.error && data.error.includes('rate limiting')) {
+              setError('Search services are currently rate limited. Please try again in a few minutes or use a different method.');
+            } else if (data.error && data.error.includes('All data sources failed')) {
+              setError(`Couldn't find information for "${brandName}". Please check the spelling or try a different brand name.`);
+            } else {
+              setError(data.message || 'Failed to perform enhanced brand research. Please try another method.');
+            }
+          }
+        } catch (err) {
+          console.error('BrandInput - Error during enhanced research:', err);
+          setStatus('');
+          setError(`Error: ${err.message || 'Failed to connect to the server. Please try again.'}`);
+        }
+      } else if (inputMethod === 'llm_deepsearch') {
+        if (!brandName) {
+          setError('Please enter a brand name for LLM DeepSearch');
+          setLoading(false);
+          return;
+        }
+        
+        setStatus('Performing deep LLM research on the brand...');
+        console.log(`BrandInput - Starting LLM DeepSearch for: ${brandName}`);
+        
+        try {
+          const data = await llmDeepSearchBrand(brandName, category, country);
+          
+          if (data.success) {
+            // Log the data received
+            console.log(`BrandInput - LLM DeepSearch successful, raw_text length: ${data.raw_text ? data.raw_text.length : 'none'}`);
+            
+            // Check if the raw_text is empty and log a warning
+            if (!data.raw_text || data.raw_text.trim().length === 0) {
+              console.error('BrandInput - Warning: LLM DeepSearch has empty raw_text!');
+              data.raw_text = `LLM DeepSearch for ${brandName}\nBrand: ${data.brand_name || brandName}`;
+              if (data.data && Object.keys(data.data).length > 0) {
+                data.raw_text += '\n\nLimited information available from LLM DeepSearch.';
+              }
+            }
+            
+            setBrandData(data);
+            setShowRawText(true);
+            setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
+            
+            // Don't call onBrandData here - wait for user confirmation
+          } else {
+            console.error('BrandInput - LLM DeepSearch failed:', data.error || 'Unknown error');
+            setError(data.message || 'Failed to get brand information. Please try a different brand name or try again later.');
+          }
+        } catch (err) {
+          console.error('BrandInput - Error during LLM DeepSearch:', err);
+          setError(err.message || 'Failed to perform LLM DeepSearch. Please try again later.');
+        }
       }
     } catch (err) {
       console.error('Error processing brand data:', err);
       setStatus('');
       
-      // Provide more specific error guidance
       if (err.message && err.message.includes('network')) {
         setError('Network error when connecting to the server. Please check your internet connection or try uploading a file instead.');
       } else if (err.message && err.message.includes('timeout')) {
-        setError('The operation timed out. This website may be too large or complex to scrape. Please try uploading a file instead.');
+        setError('The operation timed out. Please try again with a more specific brand name or try a different approach.');
       } else {
-        setError('An error occurred while processing the data. Please try again or upload a file instead.');
+        setError(`Error: ${err.message || 'An unknown error occurred. Please try again.'}`);
       }
     } finally {
       setLoading(false);
@@ -233,7 +343,6 @@ const BrandInput = ({ onBrandData }) => {
         setUploadedFile(file);
         setError(null);
         
-        // Read file content as text
         const reader = new FileReader();
         reader.onload = async (e) => {
           const text = e.target.result;
@@ -247,13 +356,15 @@ const BrandInput = ({ onBrandData }) => {
           };
           setBrandData(data);
           setShowRawText(true);
+          setIsTextConfirmed(false); // Ensure this is set to false so confirmation is required
+          
+          // Don't call onBrandData here - wait for user confirmation
         };
         reader.onerror = () => {
           setError('Error reading the uploaded file');
           setUploadedFile(null);
         };
         
-        // Read as text for all file types
         reader.readAsText(file);
       } else {
         setError('Please upload a .txt or .doc/.docx file');
@@ -267,8 +378,9 @@ const BrandInput = ({ onBrandData }) => {
 
   const handleConfirmText = () => {
     setIsTextConfirmed(true);
-    if (onBrandData && typeof onBrandData === 'function') {
-      console.log('BrandInput - Sending brand data with raw_text:', 
+    // Call onBrandData here to pass the data to the next step
+    if (onBrandData && typeof onBrandData === 'function' && brandData) {
+      console.log('BrandInput - Sending brand data after confirmation with raw_text:', 
         brandData.raw_text ? 
         `${brandData.raw_text.substring(0, 100)}... (${brandData.raw_text.length} chars)` : 
         'No raw_text');
@@ -294,7 +406,6 @@ const BrandInput = ({ onBrandData }) => {
         <h2 className="h5 mb-0">Brand Information</h2>
       </div>
       <div className="card-body">
-        {/* Show error message if any */}
         {error && (
           <div className="alert alert-danger" role="alert">
             {error}
@@ -311,7 +422,6 @@ const BrandInput = ({ onBrandData }) => {
           </div>
         )}
         
-        {/* Show status message during operations */}
         {status && !error && (
           <div className="alert alert-info" role="alert">
             <div className="d-flex align-items-center">
@@ -371,6 +481,32 @@ const BrandInput = ({ onBrandData }) => {
                   <i className="bi bi-file-earmark-text me-2"></i>
                   Upload File
                 </label>
+                
+                <input
+                  type="radio"
+                  className="btn-check"
+                  name="inputMethod"
+                  id="enhancedMethod"
+                  checked={inputMethod === 'enhanced'}
+                  onChange={() => setInputMethod('enhanced')}
+                />
+                <label className="btn btn-outline-primary" htmlFor="enhancedMethod">
+                  <i className="bi bi-search me-2"></i>
+                  Enhanced Research
+                </label>
+                
+                <input
+                  type="radio"
+                  className="btn-check"
+                  name="inputMethod"
+                  id="llmDeepsearchMethod"
+                  checked={inputMethod === 'llm_deepsearch'}
+                  onChange={() => setInputMethod('llm_deepsearch')}
+                />
+                <label className="btn btn-outline-primary" htmlFor="llmDeepsearchMethod">
+                  <i className="bi bi-robot me-2"></i>
+                  LLM DeepSearch
+                </label>
               </div>
             </div>
 
@@ -393,7 +529,7 @@ const BrandInput = ({ onBrandData }) => {
                     We'll scrape the website content for analysis.
                   </div>
                 </div>
-              ) : (
+              ) : inputMethod === 'upload' ? (
                 <div className="mb-3">
                   <label htmlFor="fileUpload" className="form-label">
                     Upload Brand Information File
@@ -411,60 +547,87 @@ const BrandInput = ({ onBrandData }) => {
                     Upload a text or Word document containing your brand information.
                   </div>
                 </div>
-              )}
-              
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <label htmlFor="category" className="form-label">
-                    Brand Category
-                  </label>
-                  <select
-                    id="category"
-                    className="form-select"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    {CATEGORIES.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="col-md-6 mb-3">
-                  <label htmlFor="country" className="form-label">
-                    Primary Market
-                  </label>
-                  <select
-                    id="country"
-                    className="form-select"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                  >
-                    {COUNTRIES.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              ) : inputMethod === 'enhanced' || inputMethod === 'llm_deepsearch' ? (
+                <>
+                  <div className="mb-3">
+                    <label htmlFor="brandName" className="form-label">
+                      Brand Name
+                    </label>
+                    <input
+                      type="text"
+                      id="brandName"
+                      className="form-control"
+                      value={brandName}
+                      onChange={(e) => setBrandName(e.target.value)}
+                      placeholder="e.g., Nike, Apple, Tesla"
+                      required
+                    />
+                    <div className="form-text">
+                      {inputMethod === 'enhanced' ? 
+                        "We'll research this brand from multiple online sources." :
+                        "We'll use our AI to gather comprehensive information about this brand."}
+                    </div>
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label htmlFor="category" className="form-label">
+                        Category (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        id="category"
+                        className="form-control"
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        placeholder="e.g., Technology, Fashion"
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label htmlFor="country" className="form-label">
+                        Country (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        id="country"
+                        className="form-control"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        placeholder="e.g., US, India, UK"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              <div className="d-grid gap-2">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      {status || 'Processing...'}
+                    </span>
+                  ) : (
+                    <>
+                      {inputMethod === 'scrape' ? (
+                        <><i className="bi bi-globe me-2"></i>Get Brand Info</>
+                      ) : inputMethod === 'upload' ? (
+                        <><i className="bi bi-file-earmark-text me-2"></i>Process File</>
+                      ) : inputMethod === 'enhanced' ? (
+                        <><i className="bi bi-search me-2"></i>Start Enhanced Research</>
+                      ) : inputMethod === 'llm_deepsearch' ? (
+                        <><i className="bi bi-robot me-2"></i>Start LLM DeepSearch</>
+                      ) : (
+                        'Continue'
+                      )}
+                    </>
+                  )}
+                </button>
               </div>
-              
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading || (inputMethod === 'scrape' && !url.trim()) || (inputMethod === 'upload' && !uploadedFile)}
-              >
-                {loading ? (
-                  <span>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    {inputMethod === 'scrape' ? 'Scraping Website...' : 'Processing File...'}
-                  </span>
-                ) : (
-                  inputMethod === 'scrape' ? 'Get Brand Data' : 'Process File'
-                )}
-              </button>
             </form>
           </>
         ) : (
@@ -616,6 +779,19 @@ const BrandInput = ({ onBrandData }) => {
                     Confirm & Continue
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {warning && (
+          <div className="mt-4">
+            <div className="card">
+              <div className="card-header">
+                <h5 className="mb-0">Warning</h5>
+              </div>
+              <div className="card-body">
+                <p>{warning}</p>
               </div>
             </div>
           </div>

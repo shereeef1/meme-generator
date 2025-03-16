@@ -206,13 +206,21 @@ export const uploadBrandFile = async (file, category, country) => {
   }
 };
 
-export const fetchNews = async (limit = 20, days = 14) => {
+export const fetchNews = async (limit = 20, days = 14, country = 'in', category = null) => {
   try {
-    console.log(`API - Fetching ${limit} news articles from the last ${days} days`);
+    console.log(`API - Fetching ${limit} news articles from ${country} for the last ${days} days${category ? `, category: ${category}` : ''}`);
+    
+    // Build the URL with query parameters
+    let url = `${API_BASE_URL}/news?limit=${limit}&days=${days}&country=${country}`;
+    
+    // Add category parameter if specified
+    if (category) {
+      url += `&category=${category}`;
+    }
     
     // Use fetchWithTimeout for a 30-second timeout
     const response = await fetchWithTimeout(
-      `${API_BASE_URL}/news?limit=${limit}&days=${days}`, 
+      url, 
       {
         method: 'GET',
         headers: {
@@ -391,4 +399,60 @@ export const enhancedBrandResearch = async (brandName, category = null, country 
       message: 'Failed to perform enhanced brand research. Please try again later.'
     };
   }
-}; 
+};
+
+/**
+ * Perform LLM DeepSearch on a brand name
+ * @param {string} brandName - Brand name to research
+ * @param {string} category - Optional brand category
+ * @param {string} country - Optional country to focus on
+ * @returns {Promise<Object>} - Research results
+ */
+export async function llmDeepSearchBrand(brandName, category = null, country = null) {
+  console.log(`API - Starting LLM DeepSearch for ${brandName}`);
+  
+  try {
+    const requestData = {
+      brand_name: brandName,
+      category: category,
+      country: country
+    };
+    
+    // Use the fetchWithTimeout helper with a 120-second timeout for LLM DeepSearch
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/llm-deepsearch-brand`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      },
+      120000 // 120 seconds timeout for LLM operations
+    );
+    
+    // Handle non-200 responses
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('API - LLM DeepSearch failed:', response.status, errorData);
+      throw new Error(errorData.message || 'Failed to perform LLM DeepSearch research');
+    }
+    
+    const data = await response.json();
+    console.log(`API - LLM DeepSearch successful for: ${data.brand_name || brandName}`);
+    return data;
+    
+  } catch (error) {
+    // Handle timeout errors specifically
+    if (error.name === 'AbortError') {
+      console.error('API - LLM DeepSearch request timed out:', error);
+      throw new Error(
+        'The LLM DeepSearch operation took too long. Please try with a more specific brand name.'
+      );
+    }
+    
+    // Rethrow other errors
+    console.error('API - Error during LLM DeepSearch:', error);
+    throw error;
+  }
+} 

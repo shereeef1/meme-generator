@@ -7,6 +7,8 @@ import requests
 import logging
 import time
 import traceback
+import uuid
+from datetime import datetime
 
 # Import our modules
 from modules.meme_generation import MemeGenerator
@@ -21,6 +23,7 @@ from modules.news_integration import NewsIntegration
 
 # Import the enhanced research module
 from modules.enhanced_research import EnhancedResearch
+from modules.research_sources.llm_deepsearch import LLMDeepSearch
 
 # Load environment variables
 load_dotenv()
@@ -47,6 +50,9 @@ news_integration = NewsIntegration()
 
 # Initialize the enhanced research coordinator
 enhanced_research = EnhancedResearch(brand_scraper, news_integration, doc_manager)
+
+# Initialize the LLM DeepSearch module
+llm_deepsearch = LLMDeepSearch()
 
 # Simple health check route
 @app.route('/api/health', methods=['GET'])
@@ -198,8 +204,14 @@ def get_news():
         # Get days parameter, default to 14 (2 weeks)
         days = request.args.get('days', 14, type=int)
         
+        # Get country parameter, default to 'in' (India)
+        country = request.args.get('country', 'in')
+        
+        # Get category parameter, default to None (all categories)
+        category = request.args.get('category', None)
+        
         # Use the globally initialized news_integration
-        news_articles = news_integration.get_top_news(limit=limit, days=days)
+        news_articles = news_integration.get_top_news(limit=limit, days=days, country=country, category=category)
         
         return jsonify({
             "success": True,
@@ -814,6 +826,93 @@ def enhanced_brand_research():
             "success": False,
             "error": f"Server error: {str(e)}",
             "message": "An error occurred during enhanced brand research"
+        }), 500
+
+@app.route('/api/llm-deepsearch-brand', methods=['POST'])
+def llm_deepsearch_brand():
+    try:
+        app.logger.info("Received LLM DeepSearch brand request")
+        data = request.get_json()
+        
+        if not data:
+            app.logger.warning("No data provided in LLM DeepSearch request")
+            return jsonify({
+                "success": False,
+                "error": "No data provided",
+                "message": "Please provide brand details for research"
+            }), 400
+            
+        brand_name = data.get('brand_name')
+        
+        if not brand_name:
+            app.logger.warning("No brand name provided in LLM DeepSearch request")
+            return jsonify({
+                "success": False,
+                "error": "No brand name provided",
+                "message": "Please provide a brand name for research"
+            }), 400
+            
+        category = data.get('category')
+        country = data.get('country')
+        
+        app.logger.info(f"Starting LLM DeepSearch for brand: {brand_name}")
+        start_time = time.time()
+        
+        # Perform the LLM DeepSearch
+        result = llm_deepsearch.deep_search_brand(
+            brand_name=brand_name,
+            category=category,
+            country=country
+        )
+        
+        # Log the time taken
+        elapsed_time = time.time() - start_time
+        app.logger.info(f"LLM DeepSearch completed in {elapsed_time:.2f} seconds. Success: {result['success']}")
+        
+        # Check if the text is empty and log it
+        if not result.get("text") or not result["text"].strip():
+            app.logger.warning(f"LLM DeepSearch completed but text is empty for brand: {brand_name}")
+            # Add a minimal fallback text
+            result["text"] = f"LLM DeepSearch for {brand_name} returned no information. Please try with a different brand name."
+        
+        # Create a document from the research
+        if result["success"] and result.get("text"):
+            try:
+                # Generate a unique document ID
+                doc_id = str(uuid.uuid4().hex)[:8]
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{brand_name.lower().replace(' ', '_')}_llm_{timestamp}_{doc_id}.docx"
+                
+                # Save text as document
+                doc_path = doc_manager.save_document_text(
+                    result["text"],
+                    filename,
+                    category,
+                    country
+                )
+                
+                result["document_path"] = doc_path
+                # Format the data for frontend display
+                result["raw_text"] = result["text"]
+                result["source_url"] = f"LLM DeepSearch: {brand_name}"
+                result["source_type"] = "llm_deepsearch"
+                result["brand_name"] = brand_name
+                result["timestamp"] = datetime.now().isoformat()
+                
+            except Exception as e:
+                app.logger.error(f"Error saving LLM DeepSearch document: {str(e)}")
+                # Even if document saving fails, continue with the operation
+                result["warning"] = f"Document could not be saved: {str(e)}"
+        
+        return jsonify(result)
+            
+    except Exception as e:
+        app.logger.error(f"Server error in llm_deepsearch_brand: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": f"Server error: {str(e)}",
+            "message": "An error occurred during LLM DeepSearch"
         }), 500
 
 if __name__ == '__main__':
