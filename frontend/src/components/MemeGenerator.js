@@ -29,35 +29,32 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
   // Add a function to preload and cache images
   const preloadImages = async (urls) => {
     console.log('MemeGenerator - Preloading images:', urls.length);
-    
+
     const newCachedImages = {};
-    
+
     const preloadPromises = urls.map((url, index) => {
       return new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = "anonymous"; // Try to avoid CORS issues
         img.onload = () => {
-          console.log(`MemeGenerator - Image ${index+1} loaded successfully:`, url.substring(0, 50) + '...');
+          console.log(`MemeGenerator - Image ${index + 1} loaded successfully:`, url.substring(0, 50) + '...');
           if (isMounted.current) {
             newCachedImages[url] = url; // Store the original URL
             resolve(url);
           }
         };
         img.onerror = (e) => {
-          console.error(`MemeGenerator - Failed to load image ${index+1}:`, url.substring(0, 50) + '...', e);
-          // Use placeholder on error
-          if (isMounted.current) {
-            newCachedImages[url] = 'https://placehold.co/600x400?text=Image+Loading+Error';
-            resolve('https://placehold.co/600x400?text=Image+Loading+Error');
-          }
+          console.error(`MemeGenerator - Failed to load image ${index + 1}:`, url.substring(0, 50) + '...', e);
+          // Do not use placeholder on error - let the error propagate
+          resolve(null);
         };
         img.src = url;
       });
     });
-    
+
     try {
       await Promise.all(preloadPromises);
-      
+
       if (isMounted.current) {
         console.log('MemeGenerator - All images preloaded, updating cached images');
         setCachedImages((prev) => ({ ...prev, ...newCachedImages }));
@@ -69,50 +66,50 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const textStr = String(text || '');
-    
+
     if (!textStr.trim()) {
       setError('Please enter some text for your meme');
       return;
     }
-    
+
     setError(null);
     setLoading(true);
     setMemes([]);
     setSelectedMeme(null);
-    
+
     console.log('MemeGenerator - Submitting prompt:', textStr.substring(0, 100) + (textStr.length > 100 ? '...' : ''));
-    console.log('MemeGenerator - Brand data being sent:', 
+    console.log('MemeGenerator - Brand data being sent:',
       brandData ? `Name: ${brandData.brand_name}, Category: ${brandData.category}` : 'No brand data available');
-    
+
     try {
       const response = await generateMeme(textStr, brandData);
-      
+
       console.log('MemeGenerator - Response received:', response);
-      
+
       if (response && response.success) {
         // Handle both single meme_url and array of meme_urls
         if (response.meme_urls && Array.isArray(response.meme_urls)) {
           console.log('MemeGenerator - Received meme URLs:', response.meme_urls);
-          
+
           // Store the memes first, then preload them
           setMemes(response.meme_urls);
           if (response.meme_urls.length > 0) {
             setSelectedMeme(response.meme_urls[0]);
           }
-          
+
           // Preload and cache the images
           await preloadImages(response.meme_urls);
         } else if (response.meme_url) {
           // If we only have a single meme_url, create an array with it
           const memeArray = [response.meme_url];
           console.log('MemeGenerator - Received single meme URL:', response.meme_url);
-          
+
           // Store the meme first, then preload it
           setMemes(memeArray);
           setSelectedMeme(response.meme_url);
-          
+
           // Preload and cache the image
           await preloadImages(memeArray);
         } else {
@@ -142,14 +139,14 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
       // Use cached image URL if available, otherwise use original URL
       const imageUrl = cachedImages[url] || url;
       console.log('MemeGenerator - Downloading image:', imageUrl);
-      
+
       setError(null);
-      
+
       const response = await fetch(imageUrl);
       if (!response.ok) {
         throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
       }
-      
+
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -159,7 +156,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
       a.click();
       window.URL.revokeObjectURL(downloadUrl);
       document.body.removeChild(a);
-      
+
       console.log('MemeGenerator - Download successful');
     } catch (err) {
       console.error('MemeGenerator - Error downloading meme:', err);
@@ -170,10 +167,10 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
   const renderMemeImage = (url, index) => {
     const isSelected = selectedMeme === url;
     const borderClass = isSelected ? 'border-primary' : 'border-light';
-    
+
     // Use cached image URL if available, otherwise use original URL
     const imageUrl = cachedImages[url] || url;
-    
+
     return (
       <div
         key={index}
@@ -187,9 +184,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
           style={{ maxHeight: '150px', width: '100%', objectFit: 'contain' }}
           onError={(e) => {
             console.error(`MemeGenerator - Error loading image ${index + 1} in render:`, url.substring(0, 50) + '...');
-            e.target.onerror = null;
-            e.target.src = 'https://placehold.co/600x400?text=Image+Loading+Error';
-            e.target.alt = 'Error loading image';
+            // No fallback - let the error show
           }}
         />
         <div className="mt-1">
@@ -218,7 +213,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
                 {error}
               </div>
             )}
-            
+
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label htmlFor="memeText" className="form-label">
@@ -254,7 +249,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
                   )}
                 </div>
               </div>
-              
+
               {showAdvanced && (
                 <div className="card mb-3">
                   <div className="card-body">
@@ -281,7 +276,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
                   </div>
                 </div>
               )}
-              
+
               <div className="d-grid">
                 <button
                   type="submit"
@@ -301,7 +296,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
             </form>
           </div>
         </div>
-        
+
         {selectedMeme && (
           <div className="card mt-4">
             <div className="card-header bg-success text-white d-flex justify-content-between align-items-center">
@@ -331,11 +326,9 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
                   className="img-fluid w-100"
                   style={{ maxHeight: '500px', objectFit: 'contain', border: '1px solid #eee' }}
                   onError={(e) => {
-                    console.error('MemeGenerator - Error loading selected meme:', 
+                    console.error('MemeGenerator - Error loading selected meme:',
                       selectedMeme ? selectedMeme.substring(0, 50) + '...' : 'undefined');
-                    e.target.onerror = null;
-                    e.target.src = 'https://placehold.co/600x400?text=Image+Loading+Error';
-                    e.target.alt = 'Error loading selected meme';
+                    // No fallback - let the error show
                   }}
                 />
                 {loading && (
@@ -350,7 +343,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
           </div>
         )}
       </div>
-      
+
       <div className="col-lg-4">
         {memes && memes.length > 0 && (
           <div className="card">
@@ -365,7 +358,7 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
           </div>
         )}
       </div>
-      
+
       <style>{`
         .meme-thumbnail {
           height: 120px;
