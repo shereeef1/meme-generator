@@ -159,7 +159,7 @@ const checkRemainingGenerationsFirestore = async () => {
   console.log('usageTracker - Retrieved userId:', userId);
   
   // Get the user's document from Firestore
-  const userDocRef = doc(firestore, COLLECTION_PATH, userId);
+  const userDocRef = doc(db, COLLECTION_PATH, userId);
   const docSnap = await getDoc(userDocRef);
   
   if (docSnap.exists()) {
@@ -301,7 +301,7 @@ const incrementUsageCountFirestore = async (userId) => {
     throw new Error('No userId provided for incrementing');
   }
   
-  const userDocRef = doc(firestore, COLLECTION_PATH, userId);
+  const userDocRef = doc(db, COLLECTION_PATH, userId);
   
   try {
     await updateDoc(userDocRef, {
