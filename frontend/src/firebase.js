@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, connectFirestoreEmulator, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -28,6 +29,7 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore and Storage
 const db = getFirestore(app);
 const storage = getStorage(app);
+const auth = getAuth(app);
 
 // Set up better offline persistence
 try {
@@ -61,4 +63,24 @@ if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_USE_FIREBASE
   }
 }
 
-export { app, db, storage }; 
+// Get current user ID or generate a temporary one
+const getFirebaseUserId = async () => {
+  return new Promise((resolve) => {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is signed in
+        resolve(user.uid);
+      } else {
+        // User is not signed in, use stored anonymous ID or generate one
+        let anonymousId = localStorage.getItem('anonymousUserId');
+        if (!anonymousId) {
+          anonymousId = 'anon_' + Math.random().toString(36).substring(2, 15);
+          localStorage.setItem('anonymousUserId', anonymousId);
+        }
+        resolve(anonymousId);
+      }
+    });
+  });
+};
+
+export { app, db, storage, auth, getFirebaseUserId }; 

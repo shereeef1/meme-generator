@@ -2,7 +2,7 @@ import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc, increment, enableIndexedDbPersistence } from 'firebase/firestore';
 import config from '../config';
-import { firestore, getFirebaseUserId } from '../firebase';
+import { getFirebaseUserId } from '../firebase';
 import { updateDoc } from 'firebase/firestore';
 
 // Enable offline persistence
