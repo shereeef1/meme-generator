@@ -4,6 +4,7 @@ import BrandInput from './components/BrandInput';
 import MemeGenerator from './components/MemeGenerator';
 import PromptSuggestions from './components/PromptSuggestions';
 import TopicalNews from './components/TopicalNews';
+import FirebaseStatus from './components/FirebaseStatus';
 import { generatePrompts } from './api';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
   const [prompts, setPrompts] = useState([]);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
   const [promptError, setPromptError] = useState(null);
+  const [showFirebaseStatus, setShowFirebaseStatus] = useState(false);
 
   // Add meme patterns for visual flair
   const memePatterns = {
@@ -105,8 +107,22 @@ function App() {
         <div className="container">
           <h1 className="display-4 text-center mb-3">{memePatterns.headerEmoji} Meme-ify Your Brand or Die Trying {memePatterns.headerEmoji}</h1>
           <p className="lead text-center">Making boring brands go viral since 5 minutes ago</p>
+          <div className="mt-2 small text-center text-white">
+            <p className="mb-0">
+              Free for 2 meme generations per user. Contact Sher at +91 7888117894 to upgrade.
+              <button 
+                className="btn btn-link btn-sm text-light p-0 ms-2" 
+                onClick={() => setShowFirebaseStatus(!showFirebaseStatus)}
+                style={{ textDecoration: 'none' }}
+              >
+                {showFirebaseStatus ? 'Hide Status' : 'System Status'}
+              </button>
+            </p>
+          </div>
         </div>
       </header>
+      
+      {showFirebaseStatus && <FirebaseStatus />}
       
       <main className="container my-4">
         <ul className="nav nav-tabs mb-4">

@@ -4,15 +4,67 @@
   flex-direction: column;
 }
 
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8f9fa;
+}
+
 main {
   flex: 1;
 }
 
-header {
-  background: linear-gradient(135deg, #0d47a1, #42a5f5);
+.app-header {
+  background: linear-gradient(135deg, #8e44ad, #e74c3c);
+  color: white;
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-footer {
-  background: linear-gradient(135deg, #0d47a1, #42a5f5);
-  margin-top: auto;
+.app-footer {
+  background: linear-gradient(135deg, #8e44ad, #e74c3c);
+  color: white;
+  padding: 1rem 0;
+  margin-top: 2rem;
+}
+
+.nav-tabs .nav-link {
+  color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+  color: #0d47a1;
+  font-weight: 500;
+}
+
+/* Fix for the badge text color */
+.badge.bg-warning {
+  color: #212529 !important;
+}
+
+/* Fix for buttons */
+.btn-primary {
+  background: linear-gradient(135deg, #8e44ad, #e74c3c);
+  border-color: #8e44ad;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #9b59b6, #e74c3c);
+  border-color: #9b59b6;
+}
+
+.btn-outline-primary {
+  color: #8e44ad;
+  border-color: #8e44ad;
+}
+
+.btn-outline-primary:hover {
+  background-color: #8e44ad;
+  color: white;
+}
+
+.card-header.bg-primary {
+  background: linear-gradient(135deg, #8e44ad, #e74c3c) !important;
 } 

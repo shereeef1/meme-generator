@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { generateMeme } from '../api';
 // Import confetti
 import confetti from 'canvas-confetti';
+// Import usage tracking services
+import { checkRemainingGenerations, incrementUsageCount } from '../services/usageTracker';
+import PaymentMessage from './PaymentMessage';
 
 const MemeGenerator = ({ prompt = '', brandData = null }) => {
   const [text, setText] = useState(prompt || '');
@@ -12,13 +15,91 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   // Add a state to store cached images
   const [cachedImages, setCachedImages] = useState({});
+  // Usage tracking states
+  const [usageInfo, setUsageInfo] = useState(null);
+  const [isCheckingUsage, setIsCheckingUsage] = useState(false); // Start with false to prevent the spinner
+  const [userId, setUserId] = useState(null);
   const isMounted = useRef(true);
 
+  // Add immediate fix for loading state
   useEffect(() => {
+    // Force apply default usage info to ensure app works even with Firebase errors
+    setUsageInfo({
+      remainingCount: 2,
+      hasRemainingUses: true,
+      totalUsed: 0,
+      source: 'immediate-fix'
+    });
+    
+    // Start usage check after providing default values
+    checkUsageLimits();
+    
     return () => {
       isMounted.current = false;
     };
   }, []);
+
+  // Add a loading timeout effect with shorter timeout
+  useEffect(() => {
+    if (isCheckingUsage) {
+      console.log('MemeGenerator - Loading spinner active, setting short timeout');
+      // Set a timeout to force-disable the loading indicator if it takes too long
+      const timeout = setTimeout(() => {
+        if (isMounted.current && isCheckingUsage) {
+          console.log('MemeGenerator - Force ending usage check due to timeout');
+          setIsCheckingUsage(false);
+          
+          // Set a fallback usage state
+          if (!usageInfo) {
+            setUsageInfo({
+              remainingCount: 2,
+              hasRemainingUses: true,
+              totalUsed: 0,
+              source: 'forced-default'
+            });
+          }
+        }
+      }, 1000); // 1 second timeout since we know Firebase is working
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [isCheckingUsage, usageInfo]);
+
+  // Add function to check usage limits
+  const checkUsageLimits = async () => {
+    console.log('MemeGenerator - checkUsageLimits called');
+    // Don't set loading state - we already have default values
+    // setIsCheckingUsage(true);
+    
+    try {
+      console.log('MemeGenerator - Requesting usage data');
+      const usageData = await checkRemainingGenerations();
+      console.log('MemeGenerator - Usage data received:', usageData);
+      
+      if (isMounted.current) {
+        // Only update if we got valid data
+        if (usageData && typeof usageData.remainingCount === 'number') {
+          setUsageInfo(usageData);
+          setUserId(usageData.userId);
+        }
+        
+        // If this came from an error or localStorage (offline), show a warning
+        if (usageData && (usageData.source === 'error' || usageData.source === 'localStorage')) {
+          console.warn('MemeGenerator - Using fallback storage due to Firebase connection issues');
+          setError('Warning: Using offline mode. Your usage limits might not be accurate until connection is restored.');
+        }
+      }
+    } catch (error) {
+      console.error('MemeGenerator - Error checking usage:', error);
+      // Don't override our default values on error
+    } finally {
+      console.log('MemeGenerator - Finishing usage check');
+      // Always ensure loading is false
+      if (isMounted.current) {
+        setIsCheckingUsage(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (prompt) {
@@ -88,6 +169,12 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
       return;
     }
 
+    // Check if user has remaining uses before proceeding
+    if (!usageInfo || !usageInfo.hasRemainingUses) {
+      console.log('MemeGenerator - No remaining uses, cannot generate meme');
+      return;
+    }
+
     setError(null);
     setLoading(true);
     setMemes([]);
@@ -116,6 +203,12 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
           // Preload and cache the images
           await preloadImages(response.meme_urls);
           
+          // Increment usage count after successful generation
+          await incrementUsageCount(userId);
+          
+          // Update the usage info after successful generation
+          checkUsageLimits();
+          
           // Celebrate with confetti!
           celebrateSuccess();
         } else if (response.meme_url) {
@@ -129,6 +222,12 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
 
           // Preload and cache the image
           await preloadImages(memeArray);
+          
+          // Increment usage count after successful generation
+          await incrementUsageCount(userId);
+          
+          // Update the usage info after successful generation
+          checkUsageLimits();
           
           // Celebrate with confetti!
           celebrateSuccess();
@@ -214,18 +313,30 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
     );
   };
 
+  // Check if user has hit the limit
+  if (usageInfo && !usageInfo.hasRemainingUses) {
+    return <PaymentMessage />;
+  }
+
   return (
     <div className="row">
       <div className="col-lg-8 mb-4">
         <div className="card">
           <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h2 className="h5 mb-0">Meme-ify This Bad Boy</h2>
-            <button
-              className="btn btn-sm btn-light"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-            >
-              {showAdvanced ? 'Hide Nerdy Stuff' : 'Show Nerdy Stuff'}
-            </button>
+            <div>
+              {usageInfo && (
+                <span className="badge bg-warning text-dark me-2">
+                  {usageInfo.remainingCount} free {usageInfo.remainingCount === 1 ? 'generation' : 'generations'} left
+                </span>
+              )}
+              <button
+                className="btn btn-sm btn-light"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+              >
+                {showAdvanced ? 'Hide Nerdy Stuff' : 'Show Nerdy Stuff'}
+              </button>
+            </div>
           </div>
           <div className="card-body">
             {error && (
@@ -233,87 +344,130 @@ const MemeGenerator = ({ prompt = '', brandData = null }) => {
                 Oops! We broke the internet. {error}
               </div>
             )}
-
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label htmlFor="memeText" className="form-label">
-                  {prompt ? 'Your Brilliant Idea:' : 'Type Something Hilarious Here:'}
-                </label>
-                <div className="input-group">
-                  <textarea
-                    id="memeText"
-                    className="form-control"
-                    value={text || ''}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder="Enter your meme text here... make it good or the AI will judge you"
-                    maxLength={300}
-                    rows={3}
-                    disabled={loading}
-                    required
-                  />
-                  {!prompt && (
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={() => setText('')}
-                      disabled={!text || loading}
-                    >
-                      Start Over
-                    </button>
-                  )}
+            
+            {isCheckingUsage ? (
+              <div className="text-center my-3">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
                 </div>
-                <div className="form-text d-flex justify-content-between">
-                  <span>{text ? text.length : 0}/300 characters</span>
-                  {brandData && (
-                    <span>Brand: {brandData.brand_name}</span>
-                  )}
+                <p className="mt-2">Checking usage limits...</p>
+                <div className="d-flex justify-content-center gap-2">
+                  <button 
+                    className="btn btn-sm btn-outline-secondary mt-3"
+                    onClick={() => {
+                      console.log('MemeGenerator - Manual skip clicked');
+                      setIsCheckingUsage(false);
+                      setUsageInfo({
+                        hasRemainingUses: true,
+                        remainingCount: 2,
+                        source: 'manual-override'
+                      });
+                    }}
+                  >
+                    Skip Check
+                  </button>
+                  <button 
+                    className="btn btn-sm btn-danger mt-3"
+                    onClick={() => {
+                      console.log('MemeGenerator - Force reset clicked');
+                      // Force reset everything
+                      setIsCheckingUsage(false);
+                      setUsageInfo({
+                        hasRemainingUses: true,
+                        remainingCount: 2,
+                        source: 'force-reset'
+                      });
+                      setError(null);
+                      // Force a component re-render
+                      setText(text => text + ' ');
+                    }}
+                  >
+                    Force Reset
+                  </button>
                 </div>
               </div>
+            ) : (
+              <form onSubmit={handleSubmit}>
+                <div className="mb-3">
+                  <label htmlFor="memeText" className="form-label">
+                    {prompt ? 'Your Brilliant Idea:' : 'Type Something Hilarious Here:'}
+                  </label>
+                  <div className="input-group">
+                    <textarea
+                      id="memeText"
+                      className="form-control"
+                      value={text || ''}
+                      onChange={(e) => setText(e.target.value)}
+                      placeholder="Enter your meme text here... make it good or the AI will judge you"
+                      maxLength={300}
+                      rows={3}
+                      disabled={loading}
+                      required
+                    />
+                    {!prompt && (
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => setText('')}
+                        disabled={!text || loading}
+                      >
+                        Start Over
+                      </button>
+                    )}
+                  </div>
+                  <div className="form-text d-flex justify-content-between">
+                    <span>{text ? text.length : 0}/300 characters</span>
+                    {brandData && (
+                      <span>Brand: {brandData.brand_name}</span>
+                    )}
+                  </div>
+                </div>
 
-              {showAdvanced && (
-                <div className="card mb-3">
-                  <div className="card-body">
-                    <h6 className="mb-3">Advanced Options (for Meme Experts Only)</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label">Style</label>
-                        <select className="form-select" disabled={loading}>
-                          <option value="modern">Super Modern</option>
-                          <option value="classic">Old School Cool</option>
-                          <option value="minimal">No Frills</option>
-                        </select>
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Format</label>
-                        <select className="form-select" disabled={loading}>
-                          <option value="auto">AI Decides</option>
-                          <option value="square">Square (For Boomers)</option>
-                          <option value="portrait">Portrait (For TikTokers)</option>
-                          <option value="landscape">Landscape (For Fancy People)</option>
-                        </select>
+                {showAdvanced && (
+                  <div className="card mb-3">
+                    <div className="card-body">
+                      <h6 className="mb-3">Advanced Options (for Meme Experts Only)</h6>
+                      <div className="row g-3">
+                        <div className="col-md-6">
+                          <label className="form-label">Style</label>
+                          <select className="form-select" disabled={loading}>
+                            <option value="modern">Super Modern</option>
+                            <option value="classic">Old School Cool</option>
+                            <option value="minimal">No Frills</option>
+                          </select>
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label">Format</label>
+                          <select className="form-select" disabled={loading}>
+                            <option value="auto">AI Decides</option>
+                            <option value="square">Square (For Boomers)</option>
+                            <option value="portrait">Portrait (For TikTokers)</option>
+                            <option value="landscape">Landscape (For Fancy People)</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="d-grid">
-                <button
-                  type="submit"
-                  className="btn btn-primary btn-lg"
-                  disabled={loading || !text || !text.trim()}
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Summoning Meme Gods...
-                    </>
-                  ) : (
-                    'Generate Viral Content'
-                  )}
-                </button>
-              </div>
-            </form>
+                <div className="d-grid">
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-lg"
+                    disabled={loading || !text || !text.trim()}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Summoning Meme Gods...
+                      </>
+                    ) : (
+                      'Generate Viral Content'
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
 
