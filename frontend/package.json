@@ -2,7 +2,7 @@
   "name": "meme-generator-frontend",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://shereeef1.github.io/meme-generator",
+  "homepage": "/",
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.1",
     "@testing-library/jest-dom": "^5.16.5",
