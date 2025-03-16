@@ -11,7 +11,7 @@ services:
       - key: FLASK_ENV
         value: production
       - key: PYTHON_VERSION
-        value: 3.9
+        value: 3.9.7
       - key: FIREBASE_CREDENTIALS_PATH
         sync: false
       - key: FIREBASE_API_KEY
