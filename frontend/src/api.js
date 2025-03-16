@@ -1,4 +1,9 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import config from './config';
+
+const API_BASE_URL = config.apiUrl;
+
+// For GitHub Pages deployment, we'll use mock data when in production mode
+const isMockMode = config.isMockMode;
 
 // Helper function to create a fetch request with timeout
 const fetchWithTimeout = async (url, options, timeout = 60000) => {
@@ -18,6 +23,39 @@ const fetchWithTimeout = async (url, options, timeout = 60000) => {
     throw error;
   }
 };
+
+// Mock data for GitHub Pages demo
+const mockData = {
+  memes: [
+    {
+      caption: "When the meeting could have been an email",
+      image_url: "https://source.unsplash.com/random/800x600/?funny,meme,meeting"
+    },
+    {
+      caption: "Me explaining my code to the senior developer",
+      image_url: "https://source.unsplash.com/random/800x600/?funny,meme,coding"
+    }
+  ],
+  brands: {
+    "nike": {
+      brand_name: "Nike",
+      category: "Sportswear",
+      tagline: "Just Do It",
+      products: ["Air Max", "Air Jordan"]
+    },
+    "apple": {
+      brand_name: "Apple",
+      category: "Technology",
+      tagline: "Think Different",
+      products: ["iPhone", "MacBook"]
+    }
+  }
+};
+
+// Check if we should use mock mode
+function shouldUseMock() {
+  return isMockMode && process.env.NODE_ENV === 'production';
+}
 
 export const scrapeBrandData = async (url, category, country) => {
   try {
@@ -79,6 +117,28 @@ export const generatePrompts = async (brandData) => {
         `${brandData.raw_text.substring(0, 100)}... (${brandData.raw_text.length} chars)` :
         'No raw_text');
 
+    // Use mock data in production for GitHub Pages
+    if (shouldUseMock()) {
+      console.log('API - Using mock data for prompts');
+      return {
+        success: true,
+        prompts: [
+          {
+            caption: "When someone says they don't like " + (brandData.brand_name || "our brand"),
+            suggestion: "Image of a confused person looking at the camera"
+          },
+          {
+            caption: (brandData.brand_name || "Our brand") + " fans waiting for the new release",
+            suggestion: "Image of excited people camping outside a store"
+          },
+          {
+            caption: "Me after spending my entire paycheck on " + (brandData.brand_name || "products"),
+            suggestion: "Image of empty wallet with a tear rolling down face"
+          }
+        ]
+      };
+    }
+
     const requestData = {
       raw_text: brandData.raw_text,
       brand_name: brandData.brand_name,
@@ -121,6 +181,20 @@ export const generateMeme = async (prompt, brandData) => {
       return {
         success: false,
         message: 'Prompt cannot be empty'
+      };
+    }
+
+    // Use mock data in production for GitHub Pages
+    if (shouldUseMock()) {
+      console.log('API - Using mock data for meme generation');
+      // Generate a random meme using Unsplash random images
+      const randomId = Math.floor(Math.random() * 1000);
+      return {
+        success: true,
+        meme_urls: [
+          `https://source.unsplash.com/random/800x600/?funny,meme,${prompt.split(' ')[0]}&sig=${randomId}`,
+          `https://source.unsplash.com/random/800x600/?funny,meme,${prompt.split(' ')[1] || 'comedy'}&sig=${randomId+1}`
+        ]
       };
     }
 
