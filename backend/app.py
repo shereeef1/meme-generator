@@ -10,7 +10,8 @@ from datetime import datetime
 
 # Import our modules
 from modules.meme_generation import MemeGenerator
-from modules.scraping import BrandScraper
+# We'll conditionally import and initialize BrandScraper
+# from modules.scraping import BrandScraper
 from modules.openai_integration import PromptGenerator
 from modules.file_processor import FileProcessor
 from modules.document_manager import DocumentManager
@@ -37,7 +38,18 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Initialize the modules
 meme_generator = MemeGenerator()
-brand_scraper = BrandScraper()
+# Conditionally initialize BrandScraper only in development environment
+if os.environ.get('FLASK_ENV') == 'development':
+    try:
+        from modules.scraping import BrandScraper
+        brand_scraper = BrandScraper()
+        logger.info("BrandScraper initialized (development mode)")
+    except Exception as e:
+        logger.warning(f"Could not initialize BrandScraper: {str(e)}")
+        brand_scraper = None
+else:
+    logger.info("Skipping BrandScraper initialization in production environment")
+    brand_scraper = None
 prompt_generator = PromptGenerator()
 file_processor = FileProcessor()
 doc_manager = DocumentManager()
@@ -84,6 +96,14 @@ def generate_meme():
 @app.route('/api/scrape-brand', methods=['POST'])
 def scrape_brand():
     try:
+        # Check if brand_scraper is available
+        if brand_scraper is None:
+            return jsonify({
+                "success": False,
+                "error": "Web scraping not available in production",
+                "message": "Brand scraping functionality is only available in development environment"
+            }), 400
+            
         data = request.get_json()
         
         if not data or 'url' not in data:
@@ -118,7 +138,7 @@ def scrape_brand():
         return jsonify({
             "success": False,
             "error": f"Server error: {str(e)}",
-            "message": "An unexpected error occurred on the server."
+            "message": "An unexpected error occurred while scraping the brand data"
         }), 500
 
 # Route for fetching news (we'll implement this in Step 5)
