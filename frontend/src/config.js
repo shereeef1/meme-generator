@@ -6,10 +6,12 @@ const config = {
   },
   // When deployed to Render
   production: {
-    // Get the API URL from environment variables set by Render
-    apiUrl: process.env.REACT_APP_API_URL 
-      ? `${process.env.REACT_APP_API_URL}/api` 
-      : '/api', // Fallback for direct deployment
+    // Construct the API URL from host and port environment variables
+    apiUrl: process.env.REACT_APP_API_HOST && process.env.REACT_APP_API_PORT
+      ? `https://${process.env.REACT_APP_API_HOST}:${process.env.REACT_APP_API_PORT}/api`
+      : process.env.REACT_APP_API_HOST 
+        ? `https://${process.env.REACT_APP_API_HOST}/api`
+        : '/api', // Fallback for direct deployment
     
     // No mock mode needed when we have a real backend
     isMockMode: false

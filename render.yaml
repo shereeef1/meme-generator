@@ -32,11 +32,16 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: build
     envVars:
-      - key: REACT_APP_API_URL
+      - key: REACT_APP_API_HOST
         fromService:
           name: meme-generator-api
           type: web
-          property: url
+          property: host
+      - key: REACT_APP_API_PORT
+        fromService:
+          name: meme-generator-api
+          type: web
+          property: port
       - key: REACT_APP_FIREBASE_API_KEY
         sync: false
       - key: REACT_APP_FIREBASE_AUTH_DOMAIN
