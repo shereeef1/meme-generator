@@ -50,7 +50,23 @@ if os.environ.get('FLASK_ENV') == 'development':
 else:
     logger.info("Skipping BrandScraper initialization in production environment")
     brand_scraper = None
-prompt_generator = PromptGenerator()
+
+# Initialize PromptGenerator without requiring API key in production
+try:
+    # In production, don't require the API key
+    if os.environ.get('FLASK_ENV') == 'production':
+        prompt_generator = PromptGenerator(require_key=False)
+        logger.info("PromptGenerator initialized in limited mode for production")
+    else:
+        # In development, we do want to know if the API key is missing
+        prompt_generator = PromptGenerator(require_key=True)
+        logger.info("PromptGenerator initialized with API key for development")
+except Exception as e:
+    logger.warning(f"Could not initialize PromptGenerator properly: {str(e)}")
+    # Create a backup version that will provide fallback responses
+    prompt_generator = PromptGenerator(require_key=False)
+    logger.info("Using fallback PromptGenerator without API functionality")
+
 file_processor = FileProcessor()
 doc_manager = DocumentManager()
 

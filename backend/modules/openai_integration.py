@@ -11,12 +11,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PromptGenerator:
-    def __init__(self):
+    def __init__(self, require_key=False):
         """Initialize the PromptGenerator with DeepSeek client."""
         self.api_key = os.getenv("DEEPSEEK_API_KEY")
         if not self.api_key:
-            logger.error("DeepSeek API key not found in environment variables")
-            raise ValueError("DeepSeek API key not found")
+            logger.warning("DeepSeek API key not found in environment variables")
+            if require_key:
+                raise ValueError("DeepSeek API key not found")
+            else:
+                self.available = False
+                logger.info("PromptGenerator will operate in limited mode without DeepSeek API")
+                return
         
         self.api_url = "https://api.deepseek.com/v1/chat/completions"
         self.headers = {
@@ -24,25 +29,29 @@ class PromptGenerator:
             "Content-Type": "application/json"
         }
         
-        # Test the API key with a minimal request
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=self.headers,
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [{"role": "user", "content": "test"}],
-                    "max_tokens": 5
-                }
-            )
-            response.raise_for_status()
-            logger.info("DeepSeek API key validated successfully")
-        except Exception as e:
-            logger.error(f"Failed to validate DeepSeek API key: {str(e)}")
-            raise ValueError(f"Invalid DeepSeek API key: {str(e)}")
-        
-        logger.info("PromptGenerator initialized")
-    
+        # Only test the API key if it's available
+        self.available = True
+        if self.api_key and os.environ.get('FLASK_ENV') != 'production':
+            # Test the API key with a minimal request
+            try:
+                response = requests.post(
+                    self.api_url,
+                    headers=self.headers,
+                    json={
+                        "model": "deepseek-chat",
+                        "messages": [
+                            {"role": "system", "content": "You are a helpful assistant."},
+                            {"role": "user", "content": "Hello! Are you working?"}
+                        ],
+                        "max_tokens": 5
+                    }
+                )
+                response.raise_for_status()
+                logger.info("DeepSeek API key validated successfully")
+            except Exception as e:
+                logger.warning(f"DeepSeek API test request failed: {e}")
+                # Don't raise an exception, just log the warning
+                
     def generate_meme_prompts(self, brand_data):
         """
         Generate meme prompts based on the brand data.
@@ -53,6 +62,27 @@ class PromptGenerator:
         Returns:
             list: List of generated meme prompts
         """
+        if not self.available:
+            # Return fallback prompts if API is not available
+            return {
+                'success': True,
+                'prompts': [
+                    {
+                        'caption': f'When everyone uses ordinary products, but you choose {brand_data.get("brand_name", "our brand")}.',
+                        'suggestion': f'Show someone standing out in a crowd because they\'re using {brand_data.get("brand_name", "our brand")} products.'
+                    },
+                    {
+                        'caption': f'{brand_data.get("brand_name", "Our brand")} isn\'t just a product, it\'s a lifestyle choice that sets you apart.',
+                        'suggestion': f'Display a split screen comparing ordinary life vs. the extraordinary {brand_data.get("brand_name", "our brand")} lifestyle.'
+                    },
+                    {
+                        'caption': f'That moment when you realize {brand_data.get("brand_name", "our brand")} changed everything.',
+                        'suggestion': f'Person having an "aha" moment while using a {brand_data.get("brand_name", "our brand")} product with a lightbulb appearing above their head.'
+                    }
+                ],
+                'message': 'Generated sample prompts (DeepSeek API not available)'
+            }
+            
         try:
             # Extract raw text directly
             raw_text = brand_data.get('raw_text', '')
