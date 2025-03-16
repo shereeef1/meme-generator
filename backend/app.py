@@ -19,20 +19,21 @@ from modules.news_integration import NewsIntegration
 # from modules.export import MemeExport
 # from firebase_config import db, storage_bucket
 
-# Load environment variables
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file
 load_dotenv()
 
+# Initialize Flask app
 app = Flask(__name__)
-# Enable CORS with additional configuration
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:3004"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Accept", "Origin"],
-        "supports_credentials": True
-    }
-})
-app.config.from_object(Config)
+
+# Enable CORS for all routes
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Initialize the modules
 meme_generator = MemeGenerator()
@@ -72,7 +73,7 @@ def generate_meme():
         return jsonify(result)
             
     except Exception as e:
-        app.logger.error(f"Error generating meme: {str(e)}")
+        logger.error(f"Error generating meme: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -113,7 +114,7 @@ def scrape_brand():
             return jsonify(result), 400
             
     except Exception as e:
-        app.logger.error(f"Server error in scrape_brand: {str(e)}")
+        logger.error(f"Server error in scrape_brand: {str(e)}")
         return jsonify({
             "success": False,
             "error": f"Server error: {str(e)}",
@@ -136,7 +137,7 @@ def get_news():
             "news": news_articles
         })
     except Exception as e:
-        logging.error(f"Error fetching news: {str(e)}")
+        logger.error(f"Error fetching news: {str(e)}")
         return jsonify({
             "success": False,
             "message": f"Error fetching news: {str(e)}"
@@ -168,7 +169,7 @@ def get_documents():
         })
         
     except Exception as e:
-        app.logger.error(f"Error fetching documents: {str(e)}")
+        logger.error(f"Error fetching documents: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -194,7 +195,7 @@ def get_document(doc_id):
             }), 404
             
     except Exception as e:
-        app.logger.error(f"Error fetching document: {str(e)}")
+        logger.error(f"Error fetching document: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -235,7 +236,7 @@ def update_document(doc_id):
             }), 500
             
     except Exception as e:
-        app.logger.error(f"Error updating document: {str(e)}")
+        logger.error(f"Error updating document: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -260,7 +261,7 @@ def delete_document(doc_id):
             }), 500
             
     except Exception as e:
-        app.logger.error(f"Error deleting document: {str(e)}")
+        logger.error(f"Error deleting document: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -270,28 +271,28 @@ def delete_document(doc_id):
 @app.route('/api/generate-prompts', methods=['POST'])
 def generate_prompts():
     try:
-        app.logger.info("Starting prompt generation request")
+        logger.info("Starting prompt generation request")
         data = request.get_json()
         
         if not data:
-            app.logger.warning("No data provided in request")
+            logger.warning("No data provided in request")
             return jsonify({
                 'success': False,
                 'message': 'No data provided'
             }), 400
             
         if 'raw_text' not in data:
-            app.logger.warning("No raw_text field in request data")
+            logger.warning("No raw_text field in request data")
             return jsonify({
                 'success': False,
                 'message': 'No raw text provided'
             }), 400
 
-        app.logger.info(f"Received raw text (first 100 chars): {data['raw_text'][:100]}...")
+        logger.info(f"Received raw text (first 100 chars): {data['raw_text'][:100]}...")
         
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
-            app.logger.error("DEEPSEEK_API_KEY not found in environment")
+            logger.error("DEEPSEEK_API_KEY not found in environment")
             # Return sample prompts instead of failing
             brand_name = data.get('brand_name', 'the brand')
             return jsonify({
@@ -319,16 +320,16 @@ def generate_prompts():
             "Content-Type": "application/json"
         }
         
-        app.logger.info("Sending request to DeepSeek API")
-        app.logger.info(f"Raw text length: {len(data['raw_text'])} characters")
+        logger.info("Sending request to DeepSeek API")
+        logger.info(f"Raw text length: {len(data['raw_text'])} characters")
         
         # Get requested prompt count
         prompt_count = int(data.get('prompt_count', 10))
-        app.logger.info(f"User requested {prompt_count} prompts")
+        logger.info(f"User requested {prompt_count} prompts")
         
         # Calculate appropriate max_tokens based on prompt count
         max_tokens = min(1500 + (prompt_count * 300), 4000)
-        app.logger.info(f"Setting max_tokens to {max_tokens}")
+        logger.info(f"Setting max_tokens to {max_tokens}")
         
         # Generate prompts in one call
         try:
@@ -370,11 +371,11 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
             )
             
             # Add detailed response logging
-            app.logger.info(f"DeepSeek API response status: {response.status_code}")
-            app.logger.info(f"DeepSeek API response headers: {dict(response.headers)}")
+            logger.info(f"DeepSeek API response status: {response.status_code}")
+            logger.info(f"DeepSeek API response headers: {dict(response.headers)}")
             
             if response.status_code != 200:
-                app.logger.error(f"DeepSeek API error: {response.status_code}, Response body: {response.text}")
+                logger.error(f"DeepSeek API error: {response.status_code}, Response body: {response.text}")
                 return jsonify({
                     'success': False,
                     'error': f"DeepSeek API returned status code {response.status_code}",
@@ -382,10 +383,10 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
                 }), 500
             
             response_json = response.json()
-            app.logger.info(f"DeepSeek API response JSON keys: {list(response_json.keys())}")
+            logger.info(f"DeepSeek API response JSON keys: {list(response_json.keys())}")
             
             if 'choices' not in response_json or len(response_json['choices']) == 0:
-                app.logger.error(f"DeepSeek API response missing 'choices': {response_json}")
+                logger.error(f"DeepSeek API response missing 'choices': {response_json}")
                 return jsonify({
                     'success': False,
                     'error': "Invalid API response format - missing 'choices'",
@@ -393,7 +394,7 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
                 }), 500
                 
             if 'message' not in response_json['choices'][0]:
-                app.logger.error(f"DeepSeek API response missing 'message' in first choice: {response_json['choices'][0]}")
+                logger.error(f"DeepSeek API response missing 'message' in first choice: {response_json['choices'][0]}")
                 return jsonify({
                     'success': False,
                     'error': "Invalid API response format - missing 'message' in first choice",
@@ -401,7 +402,7 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
                 }), 500
                 
             if 'content' not in response_json['choices'][0]['message']:
-                app.logger.error(f"DeepSeek API response missing 'content' in message: {response_json['choices'][0]['message']}")
+                logger.error(f"DeepSeek API response missing 'content' in message: {response_json['choices'][0]['message']}")
                 return jsonify({
                     'success': False,
                     'error': "Invalid API response format - missing 'content' in message",
@@ -409,12 +410,12 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
                 }), 500
                 
             generated_text = response_json['choices'][0]['message']['content']
-            app.logger.info(f"Successfully extracted generated text, length: {len(generated_text)}")
-            app.logger.info(f"Generated text (first 300 chars): {generated_text[:300]}...")
+            logger.info(f"Successfully extracted generated text, length: {len(generated_text)}")
+            logger.info(f"Generated text (first 300 chars): {generated_text[:300]}...")
             
         except requests.exceptions.RequestException as e:
-            app.logger.error(f"Error making request to DeepSeek API: {str(e)}")
-            app.logger.error(f"Request details: URL={api_url}, Headers={headers}")
+            logger.error(f"Error making request to DeepSeek API: {str(e)}")
+            logger.error(f"Request details: URL={api_url}, Headers={headers}")
             return jsonify({
                 'success': False,
                 'error': f"Failed to connect to DeepSeek API: {str(e)}",
@@ -493,9 +494,9 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
                     })
             
             # Log the extracted prompts for debugging
-            app.logger.info(f"Extracted {len(extracted_prompts)} prompts from DeepSeek response")
+            logger.info(f"Extracted {len(extracted_prompts)} prompts from DeepSeek response")
             for i, prompt in enumerate(extracted_prompts):
-                app.logger.info(f"Prompt {i+1}: Caption: {prompt['caption'][:30]}... Suggestion: {prompt['suggestion'][:30]}...")
+                logger.info(f"Prompt {i+1}: Caption: {prompt['caption'][:30]}... Suggestion: {prompt['suggestion'][:30]}...")
                 
             return extracted_prompts
 
@@ -504,7 +505,7 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
 
         # If that fails, use the simpler line-by-line approach as backup
         if not prompts:
-            app.logger.warning("Advanced parser failed, trying simple parser")
+            logger.warning("Advanced parser failed, trying simple parser")
             current_caption = None
             current_suggestion = None
             
@@ -534,7 +535,7 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
         # Ensure we have the right number of prompts
         prompt_count = int(data.get('prompt_count', 10))
         if len(prompts) < prompt_count:
-            app.logger.warning(f"Received fewer prompts than requested: {len(prompts)} vs {prompt_count}")
+            logger.warning(f"Received fewer prompts than requested: {len(prompts)} vs {prompt_count}")
             
             # Generate a variety of templates for more diverse generic prompts
             brand_name = data.get('brand_name', 'the brand')
@@ -573,10 +574,10 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
                 })
 
         if len(prompts) > prompt_count:
-            app.logger.info(f"Limiting prompts to requested count: {prompt_count}")
+            logger.info(f"Limiting prompts to requested count: {prompt_count}")
             prompts = prompts[:prompt_count]
 
-        app.logger.info(f"Successfully generated {len(prompts)} prompts")
+        logger.info(f"Successfully generated {len(prompts)} prompts")
         
         return jsonify({
             'success': True,
@@ -585,7 +586,7 @@ Make sure to create exactly {prompt_count} different captions and suggestions as
         })
 
     except Exception as e:
-        app.logger.error(f"Error generating prompts: {str(e)}")
+        logger.error(f"Error generating prompts: {str(e)}")
         # Return sample prompts instead of failing with 500 error
         brand_name = data.get('brand_name', 'the brand')
         return jsonify({
@@ -644,7 +645,7 @@ def upload_file():
             return jsonify(result), 400
             
     except Exception as e:
-        logging.error(f"Error processing file upload: {str(e)}")
+        logger.error(f"Error processing file upload: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -656,24 +657,24 @@ def generate_news_prompt():
     """Generate a meme prompt based on a news article"""
     try:
         data = request.get_json()
-        logging.info("Received news prompt request")
+        logger.info("Received news prompt request")
         
         if not data:
-            logging.warning("No data provided in news prompt request")
+            logger.warning("No data provided in news prompt request")
             return jsonify({
                 'success': False,
                 'message': 'No data provided'
             }), 400
         
         if 'news' not in data:
-            logging.warning("No news data provided in news prompt request")
+            logger.warning("No news data provided in news prompt request")
             return jsonify({
                 'success': False,
                 'message': 'No news data provided'
             }), 400
             
         if 'brandData' not in data:
-            logging.warning("No brand data provided in news prompt request")
+            logger.warning("No brand data provided in news prompt request")
             return jsonify({
                 'success': False,
                 'message': 'No brand data provided'
@@ -686,7 +687,7 @@ def generate_news_prompt():
         news_title = news.get('title', '')
         news_description = news.get('description', '')
         
-        logging.info(f"Generating prompt for news: {news_title[:30]}...")
+        logger.info(f"Generating prompt for news: {news_title[:30]}...")
         
         # Combine news with brand information
         news_content = f"News Article: {news_title}\n\nDescription: {news_description}\n\n"
@@ -694,7 +695,7 @@ def generate_news_prompt():
         
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
-            logging.error("DeepSeek API key not found")
+            logger.error("DeepSeek API key not found")
             return jsonify({
                 'success': False,
                 'message': 'API key not configured'
@@ -708,7 +709,7 @@ def generate_news_prompt():
         
         # Generate a prompt based on the news article
         try:
-            logging.info("Making API request to DeepSeek")
+            logger.info("Making API request to DeepSeek")
             response = requests.post(
                 api_url,
                 headers=headers,
@@ -735,9 +736,9 @@ Important requirements:
                 }
             )
             response.raise_for_status()
-            logging.info("Received response from DeepSeek API")
+            logger.info("Received response from DeepSeek API")
         except requests.exceptions.RequestException as e:
-            logging.error(f"Error making request to DeepSeek API: {str(e)}")
+            logger.error(f"Error making request to DeepSeek API: {str(e)}")
             return jsonify({
                 'success': False,
                 'message': f'Error in API request: {str(e)}'
@@ -746,9 +747,9 @@ Important requirements:
         # Extract the generated prompt
         try:
             generated_text = response.json()['choices'][0]['message']['content']
-            logging.info(f"Generated text: {generated_text[:50]}...")
+            logger.info(f"Generated text: {generated_text[:50]}...")
         except (KeyError, IndexError) as e:
-            logging.error(f"Error parsing API response: {str(e)}")
+            logger.error(f"Error parsing API response: {str(e)}")
             return jsonify({
                 'success': False,
                 'message': 'Error parsing API response'
@@ -772,9 +773,9 @@ Important requirements:
             # Remove any hashtags that might have been included
             caption = caption.replace('#', '')
             
-            logging.info(f"Successfully parsed prompt: Caption ({len(caption)} chars)")
+            logger.info(f"Successfully parsed prompt: Caption ({len(caption)} chars)")
         else:
-            logging.warning("API response did not contain expected Caption/Suggestion format")
+            logger.warning("API response did not contain expected Caption/Suggestion format")
             return jsonify({
                 'success': False,
                 'message': 'Invalid response format from API'
@@ -785,7 +786,7 @@ Important requirements:
             'suggestion': suggestion
         }
         
-        logging.info(f"Generated news prompt with caption of {len(caption)} characters")
+        logger.info(f"Generated news prompt with caption of {len(caption)} characters")
         
         return jsonify({
             'success': True,
@@ -793,7 +794,7 @@ Important requirements:
         })
         
     except Exception as e:
-        app.logger.error(f"Error generating news prompt: {str(e)}")
+        logger.error(f"Error generating news prompt: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Failed to generate news prompt: {str(e)}'
@@ -802,11 +803,11 @@ Important requirements:
 @app.route('/api/llm-deepsearch-brand', methods=['POST'])
 def llm_deepsearch_brand():
     try:
-        app.logger.info("Received LLM DeepSearch brand request")
+        logger.info("Received LLM DeepSearch brand request")
         data = request.get_json()
         
         if not data:
-            app.logger.warning("No data provided in LLM DeepSearch request")
+            logger.warning("No data provided in LLM DeepSearch request")
             return jsonify({
                 "success": False,
                 "error": "No data provided",
@@ -816,7 +817,7 @@ def llm_deepsearch_brand():
         brand_name = data.get('brand_name')
         
         if not brand_name:
-            app.logger.warning("No brand name provided in LLM DeepSearch request")
+            logger.warning("No brand name provided in LLM DeepSearch request")
             return jsonify({
                 "success": False,
                 "error": "No brand name provided",
@@ -826,12 +827,12 @@ def llm_deepsearch_brand():
         category = data.get('category')
         country = data.get('country')
         
-        app.logger.info(f"Starting LLM DeepSearch for brand: {brand_name}")
+        logger.info(f"Starting LLM DeepSearch for brand: {brand_name}")
         
         # Use DeepSeek API to perform deep research on the brand
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
-            app.logger.error("DEEPSEEK_API_KEY not found in environment")
+            logger.error("DEEPSEEK_API_KEY not found in environment")
             return jsonify({
                 "success": False,
                 "error": "API key not configured",
@@ -867,7 +868,7 @@ def llm_deepsearch_brand():
         if country:
             user_prompt += f", with a focus on their presence in {country}"
         
-        app.logger.info("Sending request to DeepSeek API for LLM DeepSearch")
+        logger.info("Sending request to DeepSeek API for LLM DeepSearch")
         response = requests.post(
             api_url,
             headers=headers,
@@ -885,7 +886,7 @@ def llm_deepsearch_brand():
         
         if response.status_code == 200:
             research_text = response.json()['choices'][0]['message']['content']
-            app.logger.info(f"Successfully received DeepSeek API response, length: {len(research_text)}")
+            logger.info(f"Successfully received DeepSeek API response, length: {len(research_text)}")
             
             result = {
                 "success": True,
@@ -898,7 +899,7 @@ def llm_deepsearch_brand():
             }
             return jsonify(result)
         else:
-            app.logger.error(f"DeepSeek API returned error: {response.status_code}, {response.text}")
+            logger.error(f"DeepSeek API returned error: {response.status_code}, {response.text}")
             return jsonify({
                 "success": False,
                 "error": f"API error: {response.status_code}",
@@ -906,7 +907,7 @@ def llm_deepsearch_brand():
             }), 500
             
     except requests.exceptions.RequestException as e:
-        app.logger.error(f"Exception during DeepSeek API request: {str(e)}")
+        logger.error(f"Exception during DeepSeek API request: {str(e)}")
         return jsonify({
             "success": False,
             "error": f"API request failed: {str(e)}",
@@ -914,7 +915,7 @@ def llm_deepsearch_brand():
         }), 500
             
     except Exception as e:
-        app.logger.error(f"Server error in llm_deepsearch_brand: {str(e)}")
+        logger.error(f"Server error in llm_deepsearch_brand: {str(e)}")
         return jsonify({
             "success": False,
             "error": f"Server error: {str(e)}",
@@ -937,6 +938,10 @@ def options_documents():
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response, 200
 
+# Main execution code at the bottom
 if __name__ == '__main__':
+    # In production (Render), use the PORT environment variable
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    host = '0.0.0.0'  # Required for Render
+    app.run(host=host, port=port, debug=False)
+    logger.info(f"Server running on port {port}") 
