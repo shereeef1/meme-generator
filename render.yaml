@@ -4,7 +4,6 @@ services:
     name: meme-generator-api
     env: python
     plan: free
-    region: ohio
     buildCommand: cd backend && pip install -r requirements.txt
     startCommand: cd backend && python app.py
     runtime: python
@@ -32,7 +31,6 @@ services:
   - type: web
     name: meme-generator-frontend
     env: static
-    plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/build
     envVars:
